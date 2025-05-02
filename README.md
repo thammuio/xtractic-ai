@@ -1,6 +1,11 @@
-# PDF ETL Agent
+<p align="center">
+  <img src="images/xtractic-ai3.png" alt="Xtractic AI Logo" width="250"/>
+</p>
+<h1 align="center" style="font-family: 'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif;">Xtractic AI</h1>
 
-This project implements an ETL (Extract, Transform, Load) pipeline using Crew AI for processing PDF documents using Apache Spark and storing the extracted data in PostgreSQL.
+
+
+This project implements an ETL (Extract, Transform, Load) pipeline using AI for processing PDF documents using Apache Spark and storing the extracted data in PostgreSQL.
 
 ## Features
 
@@ -41,6 +46,10 @@ cp .env.example .env
 1. Place your PDF files in the `pdfs/` directory
 2. Run the ETL process:
 ```bash
+![Xtractic AI Logo](images/xtractic-ai2.png)
+
+Xtractic AI
+
 python etl_agent.py
 ```
 
