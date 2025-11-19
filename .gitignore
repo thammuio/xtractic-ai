@@ -170,3 +170,57 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 mercy-corps-example/
+
+# Archives and compressed files
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.rar
+*.7z
+*.gz
+*.bz2
+*.xz
+
+# Phoenix database and cache
+.phoenix/
+*.db
+*.db-shm
+*.db-wal
+phoenix.db
+
+# Sensitive files and API keys
+*.key
+*.pem
+*.p12
+*.pfx
+secrets.json
+credentials.json
+
+# Large data files
+*.csv
+*.xlsx
+*.parquet
+*.hdf5
+*.h5
+
+# Temporary and backup files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+*.db
+.phoenix/
