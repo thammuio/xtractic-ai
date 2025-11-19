@@ -1,0 +1,45 @@
+[project]
+name = "ssb-mcp-server"
+version = "0.1.0"
+description = "MCP server for SQL Stream Builder (SSB) via Apache Knox"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [
+  { name = "SSB MCP", email = "ssb-mcp@example.com" }
+]
+dependencies = [
+  "requests>=2.32.3",
+  "pydantic>=2.8.2",
+  "tenacity>=9.0.0",
+  "anyio>=4.4.0",
+  "mcp>=1.1.2",
+  "fastmcp>=2.12.4",
+  "pillow>=11.3.0",
+]
+
+[project.scripts]
+run-server = "ssb_mcp_server.server:main"
+
+[project.optional-dependencies]
+mcp = []
+
+[tool.mcp]
+servers = { ssb-mcp-server = "ssb_mcp_server.server:main" }
+
+[tool.uv]
+dev-dependencies = [
+  "pytest>=8.2.0",
+  "pytest-httpserver>=1.0.10",
+  "ruff>=0.6.0",
+]
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

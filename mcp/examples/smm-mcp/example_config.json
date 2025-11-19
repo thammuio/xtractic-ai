@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "ssm-mcp-server": {
+      "command": "/Users/ibrooks/Documents/GitHub/SSM-MCP-Server/run_mcp_server.sh",
+      "args": [],
+      "cwd": "/Users/ibrooks/Documents/GitHub/SSM-MCP-Server",
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "SMM_API_BASE": "http://localhost:8080/api/v2",
+        "SMM_USER": "admin",
+        "SMM_PASSWORD": "admin",
+        "SMM_READONLY": "true",
+        "HTTP_TIMEOUT_SECONDS": "30"
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "ssm-mcp-server": {
+      "command": "/Users/ibrooks/Documents/GitHub/SSM-MCP-Server/run_mcp_server.sh",
+      "args": [],
+      "cwd": "/Users/ibrooks/Documents/GitHub/SSM-MCP-Server",
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "KNOX_GATEWAY_URL": "https://your-knox-gateway:8444/gateway/smm",
+        "KNOX_TOKEN": "your-knox-jwt-token",
+        "SMM_READONLY": "true"
+      }
+    }
+  }
+}

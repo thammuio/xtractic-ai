@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<topology>
+  <gateway>
+    <provider>
+      <role>authentication</role>
+      <name>ShiroProvider</name>
+      <enabled>true</enabled>
+      <param>
+        <name>sessionTimeout</name>
+        <value>30</value>
+      </param>
+      <param>
+        <name>urls./**</name>
+        <value>authcBasic</value>
+      </param>
+    </provider>
+    <provider>
+      <role>identity-assertion</role>
+      <name>Default</name>
+      <enabled>true</enabled>
+    </provider>
+    <provider>
+      <role>authorization</role>
+      <name>AclsAuthz</name>
+      <enabled>true</enabled>
+    </provider>
+  </gateway>
+</topology>

@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "apache-flink": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-apache-flink"
+      ],
+      "env": {
+        "FLINK_HOST": "localhost",
+        "FLINK_PORT": "8081"
+      }
+    },
+    "ssb-mcp-server": {
+      "command": "python",
+      "args": [
+        "-m",
+        "ssb_mcp_server.server"
+      ],
+      "cwd": "/Users/ibrooks/Documents/GitHub/SSB-MCP-Server",
+      "env": {
+        "SSB_API_BASE": "http://localhost:18121",
+        "SSB_USER": "admin",
+        "SSB_PASSWORD": "admin",
+        "SSB_READONLY": "false",
+        "MCP_TRANSPORT": "stdio",
+        "PYTHONPATH": "/Users/ibrooks/Documents/GitHub/SSB-MCP-Server/src"
+      }
+    }
+  }
+}

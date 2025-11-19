@@ -1,0 +1,80 @@
+{
+  "total_tests": 36,
+  "passed": 29,
+  "failed": 7,
+  "errors": [
+    "\u274c Connectivity - get_heartbeat: Expecting value: line 1 column 1 (char 0)",
+    "\u274c Monitoring - analyze_sql: Begin size 1 is not equal to fixed size 3 for api/v1/sql/analyze",
+    "\u274c Job Management - get_job_mv_endpoints: Request method 'GET' not supported for api/v1/jobs/5216/mv",
+    "\u274c Job Management - copy_job: Content type '' not supported for api/v1/jobs/5216/copy",
+    "\u274c User Management - list_projects: Request method 'GET' not supported for api/v1/projects",
+    "\u274c Cluster Management - get_cluster_info: HTTP 404 Error for cluster/info",
+    "\u274c Cluster Management - get_cluster_health: HTTP 404 Error for cluster/health"
+  ],
+  "categories": {
+    "Connectivity": {
+      "passed": 1,
+      "failed": 1
+    },
+    "Monitoring": {
+      "passed": 1,
+      "failed": 1
+    },
+    "Job Management": {
+      "passed": 2,
+      "failed": 2
+    },
+    "Table Management": {
+      "passed": 4,
+      "failed": 0
+    },
+    "Connector Management": {
+      "passed": 3,
+      "failed": 0
+    },
+    "User Management": {
+      "passed": 2,
+      "failed": 1
+    },
+    "API Key Management": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Environment Management": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Sync Configuration": {
+      "passed": 1,
+      "failed": 0
+    },
+    "UDF Management": {
+      "passed": 3,
+      "failed": 0
+    },
+    "Stream Management": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Query Execution": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Job Control": {
+      "passed": 3,
+      "failed": 0
+    },
+    "Kafka Integration": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Cluster Management": {
+      "passed": 0,
+      "failed": 2
+    },
+    "Kafka Table Management": {
+      "passed": 2,
+      "failed": 0
+    }
+  }
+}

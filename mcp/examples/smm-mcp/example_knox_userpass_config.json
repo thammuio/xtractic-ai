@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "ssm-mcp-server": {
+      "command": "/Users/ibrooks/Documents/GitHub/SSM-MCP-Server/run_mcp_server.sh",
+      "args": [],
+      "cwd": "/Users/ibrooks/Documents/GitHub/SSM-MCP-Server",
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "KNOX_GATEWAY_URL": "https://your-knox-gateway:8444/gateway/smm",
+        "KNOX_USER": "your-username",
+        "KNOX_PASSWORD": "your-password",
+        "KNOX_TOKEN_ENDPOINT": "https://your-knox-gateway:8444/gateway/knoxsso/api/v1/websso",
+        "SMM_READONLY": "true",
+        "KNOX_VERIFY_SSL": "true",
+        "HTTP_TIMEOUT_SECONDS": "30"
+      }
+    }
+  }
+}
