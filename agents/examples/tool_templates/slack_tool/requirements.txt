@@ -1,0 +1,4 @@
+pydantic==2.10.6
+slack-sdk==3.21.0  # Library for interacting with Slack API
+# Please mention the tool specific python packages requirements below
+# Refer to https://pip.pypa.io/en/stable/reference/requirements-file-format/ for requirements.txt format

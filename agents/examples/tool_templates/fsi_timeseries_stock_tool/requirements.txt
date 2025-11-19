@@ -1,0 +1,5 @@
+pydantic
+
+# Please mention the tool specific python packages requirements below
+# Refer to https://pip.pypa.io/en/stable/reference/requirements-file-format/ for requirements.txt format
+yfinance

@@ -1,0 +1,6 @@
+
+pydantic==2.10.6
+
+# Refer to https://pip.pypa.io/en/stable/reference/requirements-file-format/ for requirements.txt format
+# Please mention the tool specific python packages requirements below:
+

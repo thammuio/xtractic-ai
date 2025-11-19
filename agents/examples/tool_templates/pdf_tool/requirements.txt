@@ -1,0 +1,6 @@
+pydantic
+markdown
+weasyprint
+jinja2
+frontmatter
+PyPDF2

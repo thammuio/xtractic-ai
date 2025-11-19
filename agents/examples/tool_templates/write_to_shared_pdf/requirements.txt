@@ -1,0 +1,4 @@
+pydantic
+pandas
+markdown-it-py
+weasyprint
