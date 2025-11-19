@@ -1,0 +1,159 @@
+"""
+Cloudera AI Agent Studio Service
+Manages workflows and agent interactions with Cloudera platform
+"""
+import aiohttp
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+import uuid
+
+from core.config import settings
+
+
+class ClouderaService:
+    """Service for interacting with Cloudera AI Agent Studio"""
+    
+    def __init__(self):
+        self.api_url = settings.CLOUDERA_API_URL
+        self.api_key = settings.CLOUDERA_API_KEY
+        self.workspace_id = settings.CLOUDERA_WORKSPACE_ID
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+    
+    async def _make_request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Dict:
+        """Make HTTP request to Cloudera API"""
+        url = f"{self.api_url}{endpoint}"
+        async with aiohttp.ClientSession() as session:
+            async with session.request(method, url, headers=self.headers, json=data) as response:
+                if response.status >= 400:
+                    error = await response.text()
+                    raise Exception(f"Cloudera API error: {error}")
+                return await response.json()
+    
+    async def list_workflows(self, status: Optional[str] = None, limit: int = 50, offset: int = 0) -> List[Dict]:
+        """List all workflows"""
+        params = {"limit": limit, "offset": offset}
+        if status:
+            params["status"] = status
+        
+        try:
+            endpoint = f"/workspaces/{self.workspace_id}/workflows"
+            response = await self._make_request("GET", endpoint)
+            return response.get("workflows", [])
+        except Exception as e:
+            print(f"Error listing workflows: {e}")
+            return []
+    
+    async def get_workflow_stats(self) -> Dict:
+        """Get workflow statistics"""
+        try:
+            workflows = await self.list_workflows(limit=1000)
+            stats = {
+                "total": len(workflows),
+                "running": len([w for w in workflows if w.get("status") == "running"]),
+                "completed": len([w for w in workflows if w.get("status") == "completed"]),
+                "failed": len([w for w in workflows if w.get("status") == "failed"]),
+                "pending": len([w for w in workflows if w.get("status") == "pending"])
+            }
+            return stats
+        except Exception as e:
+            print(f"Error getting workflow stats: {e}")
+            return {"total": 0, "running": 0, "completed": 0, "failed": 0, "pending": 0}
+    
+    async def get_recent_workflows(self, limit: int = 10) -> List[Dict]:
+        """Get recently executed workflows"""
+        try:
+            workflows = await self.list_workflows(limit=limit)
+            # Sort by start time
+            workflows.sort(key=lambda x: x.get("start_time", ""), reverse=True)
+            return workflows[:limit]
+        except Exception as e:
+            print(f"Error getting recent workflows: {e}")
+            return []
+    
+    async def get_workflow(self, workflow_id: str) -> Optional[Dict]:
+        """Get workflow by ID"""
+        try:
+            endpoint = f"/workspaces/{self.workspace_id}/workflows/{workflow_id}"
+            return await self._make_request("GET", endpoint)
+        except Exception as e:
+            print(f"Error getting workflow: {e}")
+            return None
+    
+    async def create_workflow(
+        self,
+        name: str,
+        description: Optional[str],
+        agent_config: Dict[str, Any],
+        workflow_steps: List[Dict[str, Any]],
+        schedule: Optional[str] = None
+    ) -> Dict:
+        """Create a new workflow"""
+        data = {
+            "name": name,
+            "description": description,
+            "agent_config": agent_config,
+            "workflow_steps": workflow_steps,
+            "schedule": schedule,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        
+        endpoint = f"/workspaces/{self.workspace_id}/workflows"
+        return await self._make_request("POST", endpoint, data)
+    
+    async def update_workflow(self, workflow_id: str, **kwargs) -> Dict:
+        """Update workflow"""
+        endpoint = f"/workspaces/{self.workspace_id}/workflows/{workflow_id}"
+        return await self._make_request("PUT", endpoint, kwargs)
+    
+    async def delete_workflow(self, workflow_id: str) -> None:
+        """Delete workflow"""
+        endpoint = f"/workspaces/{self.workspace_id}/workflows/{workflow_id}"
+        await self._make_request("DELETE", endpoint)
+    
+    async def start_workflow(
+        self,
+        workflow_id: str,
+        input_data: Optional[Dict] = None,
+        parameters: Optional[Dict] = None
+    ) -> Dict:
+        """Start workflow execution"""
+        data = {
+            "workflow_id": workflow_id,
+            "input_data": input_data or {},
+            "parameters": parameters or {},
+            "execution_id": str(uuid.uuid4()),
+            "started_at": datetime.utcnow().isoformat()
+        }
+        
+        endpoint = f"/workspaces/{self.workspace_id}/workflows/{workflow_id}/executions"
+        return await self._make_request("POST", endpoint, data)
+    
+    async def stop_workflow(self, workflow_id: str) -> Dict:
+        """Stop workflow execution"""
+        endpoint = f"/workspaces/{self.workspace_id}/workflows/{workflow_id}/stop"
+        return await self._make_request("POST", endpoint)
+    
+    async def get_workflow_executions(
+        self,
+        workflow_id: str,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[Dict]:
+        """Get workflow execution history"""
+        endpoint = f"/workspaces/{self.workspace_id}/workflows/{workflow_id}/executions"
+        response = await self._make_request("GET", endpoint)
+        return response.get("executions", [])
+    
+    async def get_execution_details(self, workflow_id: str, execution_id: str) -> Dict:
+        """Get detailed execution information"""
+        endpoint = f"/workspaces/{self.workspace_id}/workflows/{workflow_id}/executions/{execution_id}"
+        return await self._make_request("GET", endpoint)
+    
+    async def get_execution_logs(self, workflow_id: str, execution_id: str) -> List[Dict]:
+        """Get execution logs"""
+        endpoint = f"/workspaces/{self.workspace_id}/workflows/{workflow_id}/executions/{execution_id}/logs"
+        response = await self._make_request("GET", endpoint)
+        return response.get("logs", [])
