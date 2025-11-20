@@ -60,6 +60,9 @@ class ClouderaService:
         trace_id = None
         workflow_url = None
         
+        # Extract filename from URL
+        file_name = uploaded_file_url.split('/')[-1].split('?')[0]
+        
         pool = await self._get_pool()
         
         async with pool.acquire() as conn:
@@ -91,11 +94,11 @@ class ClouderaService:
                             # Save failed submission to database
                             submission_id = await conn.fetchval("""
                                 INSERT INTO xtracticai.workflow_submissions 
-                                (trace_id, workflow_url, uploaded_file_url, query, status, 
+                                (trace_id, workflow_url, uploaded_file_url, file_name, query, status, 
                                  workflow_id, workflow_name, error_message, submitted_at)
-                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                                 RETURNING id
-                            """, str(uuid.uuid4()), workflow_url, uploaded_file_url, query, 
+                            """, str(uuid.uuid4()), workflow_url, uploaded_file_url, file_name, query, 
                                 "failed", "files-to-relational", "PDF to Relational", 
                                 error_text, datetime.utcnow())
                             
@@ -111,11 +114,11 @@ class ClouderaService:
                         import json
                         submission_id = await conn.fetchval("""
                             INSERT INTO xtracticai.workflow_submissions 
-                            (trace_id, workflow_url, uploaded_file_url, query, status, 
+                            (trace_id, workflow_url, uploaded_file_url, file_name, query, status, 
                              workflow_id, workflow_name, metadata, submitted_at)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                             RETURNING id
-                        """, trace_id, workflow_url, uploaded_file_url, query, 
+                        """, trace_id, workflow_url, uploaded_file_url, file_name, query, 
                             "submitted", "files-to-relational", "PDF to Relational", 
                             json.dumps({"response": result}), datetime.utcnow())
                         
@@ -138,10 +141,10 @@ class ClouderaService:
                     if trace_id:
                         await conn.execute("""
                             INSERT INTO xtracticai.workflow_submissions 
-                            (trace_id, workflow_url, uploaded_file_url, query, status, 
+                            (trace_id, workflow_url, uploaded_file_url, file_name, query, status, 
                              workflow_id, workflow_name, error_message, submitted_at)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                        """, trace_id, workflow_url or "unknown", uploaded_file_url, query, 
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                        """, trace_id, workflow_url or "unknown", uploaded_file_url, file_name, query, 
                             "failed", "files-to-relational", "PDF to Relational", 
                             str(e), datetime.utcnow())
                 except:
