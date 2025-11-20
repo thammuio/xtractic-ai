@@ -1,0 +1,98 @@
+{
+  "template_version": "0.0.1",
+  "workflow_template": {
+    "id": "38d44739-2243-4f19-9a26-f36a8050e0fd",
+    "name": "files-to-relational",
+    "description": "",
+    "process": "sequential",
+    "agent_template_ids": [
+      "56206143-6a0b-48bd-9e31-d7f59ad7cb53"
+    ],
+    "task_template_ids": [
+      "061b808a-e8f1-4150-bfd2-db27a3ff7d2d"
+    ],
+    "is_conversational": false,
+    "pre_packaged": false
+  },
+  "agent_templates": [
+    {
+      "id": "56206143-6a0b-48bd-9e31-d7f59ad7cb53",
+      "workflow_template_id": "38d44739-2243-4f19-9a26-f36a8050e0fd",
+      "name": "Data Integration Specialist",
+      "description": "Data Integration Specialist",
+      "role": "Data Integration Specialist",
+      "backstory": "You have a decade of experience in data engineering, specializing in the integration of disparate data sources into cohesive systems. Your career began in database management, where you honed your skills in SQL and data transformation. Over the years, you've developed a keen eye for detail and a passion for automating complex data workflows. You believe in the power of clean, well-structured data to drive business insights and decision-making.",
+      "goal": "Streamline the process of extracting data from PDFs and transforming it into a format suitable for seamless insertion into PostgreSQL databases, ensuring data accuracy and integrity.",
+      "allow_delegation": false,
+      "verbose": false,
+      "cache": false,
+      "temperature": 0.10000000149011612,
+      "max_iter": 0,
+      "tool_template_ids": [
+        "5e56b387-338e-4a3a-bd28-88048eb832df",
+        "1a1a9a22-5c27-4a34-9c5f-ebd0b5cb51e0",
+        "9f38dd90-f662-4c6b-97f3-8343d5b74e09",
+        "bde81357-8aca-4837-95cb-5af415b07fdd"
+      ],
+      "mcp_template_ids": [],
+      "pre_packaged": false,
+      "agent_image_path": ""
+    }
+  ],
+  "tool_templates": [
+    {
+      "id": "1a1a9a22-5c27-4a34-9c5f-ebd0b5cb51e0",
+      "workflow_template_id": "38d44739-2243-4f19-9a26-f36a8050e0fd",
+      "name": "postgres-insert",
+      "python_code_file_name": "tool.py",
+      "python_requirements_file_name": "requirements.txt",
+      "source_folder_path": "studio-data/tool_templates/postgres_insert_XzXd3M5p",
+      "pre_built": false,
+      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/postgres_insert_XzXd3M5p_icon.png",
+      "is_venv_tool": true
+    },
+    {
+      "id": "bde81357-8aca-4837-95cb-5af415b07fdd",
+      "workflow_template_id": "38d44739-2243-4f19-9a26-f36a8050e0fd",
+      "name": "update-stats",
+      "python_code_file_name": "tool.py",
+      "python_requirements_file_name": "requirements.txt",
+      "source_folder_path": "studio-data/tool_templates/update_stats_RDjN3wT",
+      "pre_built": false,
+      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/update_stats_RDjN3wT_icon.png",
+      "is_venv_tool": true
+    },
+    {
+      "id": "5e56b387-338e-4a3a-bd28-88048eb832df",
+      "workflow_template_id": "38d44739-2243-4f19-9a26-f36a8050e0fd",
+      "name": "pdf-data-extraction",
+      "python_code_file_name": "tool.py",
+      "python_requirements_file_name": "requirements.txt",
+      "source_folder_path": "studio-data/tool_templates/pdf_data_extraction_uIuonIKq",
+      "pre_built": false,
+      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/pdf_data_extraction_uIuonIKq_icon.png",
+      "is_venv_tool": true
+    },
+    {
+      "id": "9f38dd90-f662-4c6b-97f3-8343d5b74e09",
+      "workflow_template_id": "38d44739-2243-4f19-9a26-f36a8050e0fd",
+      "name": "csv-data-extractor",
+      "python_code_file_name": "tool.py",
+      "python_requirements_file_name": "requirements.txt",
+      "source_folder_path": "studio-data/tool_templates/csv_data_extractor_aGuneHM",
+      "pre_built": false,
+      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/csv_data_extractor_aGuneHM_icon.png",
+      "is_venv_tool": true
+    }
+  ],
+  "mcp_templates": [],
+  "task_templates": [
+    {
+      "id": "061b808a-e8f1-4150-bfd2-db27a3ff7d2d",
+      "workflow_template_id": "38d44739-2243-4f19-9a26-f36a8050e0fd",
+      "description": "take the {uploaded_file_url} and provided {query} and extract data accordingly",
+      "expected_output": "once the Data is extracted save it in context and \n\ninsert into Supabase - create new tables if needed for each file processed unless specifically mentioned in the query.\n\nif success give me json response on - success, table_name, trace_id and any other details that are helpful for my future use.\n\nalso populate \"stats\" table with relevant stats (metadata) that are useful in the future to check how much data, files, records we are processing.. ",
+      "assigned_agent_template_id": "56206143-6a0b-48bd-9e31-d7f59ad7cb53"
+    }
+  ]
+}

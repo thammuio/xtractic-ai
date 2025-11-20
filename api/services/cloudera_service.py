@@ -222,7 +222,7 @@ class ClouderaService:
                 }
     
     async def submit_workflow(self, uploaded_file_url: str, query: str) -> Dict:
-        """Submit workflow to pdf-to-relational Agent Studio application"""
+        """Submit workflow to files-to-relational Agent Studio application"""
         stats_service = StatsService()
         start_time = time.time()
         execution_id = None
@@ -233,7 +233,7 @@ class ClouderaService:
             
             # Track agent
             await stats_service.track_agent(
-                agent_name="pdf-to-relational",
+                agent_name="files-to-relational",
                 agent_type="workflow",
                 status="running"
             )
@@ -244,23 +244,23 @@ class ClouderaService:
                 file_name=file_name,
                 file_type="pdf",
                 file_size_bytes=0,
-                workflow_id="pdf-to-relational",
+                workflow_id="files-to-relational",
                 workflow_name="PDF to Relational"
             )
             
             # Track workflow execution
             execution_id = await stats_service.track_workflow_execution(
-                workflow_id="pdf-to-relational",
+                workflow_id="files-to-relational",
                 workflow_name="PDF to Relational",
                 execution_type="manual",
-                agents_used=["pdf-to-relational"],
+                agents_used=["files-to-relational"],
                 tools_used=["pdf_processor"]
             )
             
-            # Get the pdf-to-relational workflow URL
+            # Get the files-to-relational workflow URL
             workflow_url = get_pdf_to_relational_workflow_url()
             if not workflow_url:
-                raise Exception("pdf-to-relational workflow application not found in Agent Studio")
+                raise Exception("files-to-relational workflow application not found in Agent Studio")
             
             api_key = get_env_var("CDSW_APIV2_KEY")
             
@@ -283,7 +283,7 @@ class ClouderaService:
                         duration_ms = (time.time() - start_time) * 1000
                         
                         # Update stats for failure
-                        await stats_service.update_agent_execution("pdf-to-relational", False)
+                        await stats_service.update_agent_execution("files-to-relational", False)
                         if file_id:
                             await stats_service.update_file_processing(
                                 file_id, "failed", error_message=error_text, duration_ms=duration_ms
@@ -299,7 +299,7 @@ class ClouderaService:
                     duration_ms = (time.time() - start_time) * 1000
                     
                     # Update stats for success
-                    await stats_service.update_agent_execution("pdf-to-relational", True)
+                    await stats_service.update_agent_execution("files-to-relational", True)
                     if file_id:
                         await stats_service.update_file_processing(
                             file_id, "completed", duration_ms=duration_ms
@@ -319,7 +319,7 @@ class ClouderaService:
                         "workflow_url": workflow_url,
                         "execution_id": execution_id,
                         "file_id": file_id,
-                        "message": "Workflow submitted successfully to pdf-to-relational"
+                        "message": "Workflow submitted successfully to files-to-relational"
                     }
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000

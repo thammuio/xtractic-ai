@@ -376,10 +376,10 @@ def get_workflow_application_url() -> Optional[str]:
 
 def get_pdf_to_relational_workflow_url() -> Optional[str]:
     """
-    Get the URL of the pdf-to-relational workflow application from Agent Studio
+    Get the URL of the files-to-relational workflow application from Agent Studio
     
     Returns:
-        Full URL to the pdf-to-relational workflow (e.g., https://subdomain.domain.com)
+        Full URL to the files-to-relational workflow (e.g., https://subdomain.domain.com)
         Returns None if not found
         
     Raises:
@@ -389,15 +389,15 @@ def get_pdf_to_relational_workflow_url() -> Optional[str]:
         applications = get_agent_studio_applications()
         domain = get_env_var("CDSW_DOMAIN")
         
-        # Find application with "pdf-to-relational" in the name
+        # Find application with "files-to-relational" in the name
         for app in applications:
             app_name = app.get("name", "").lower()
-            if "pdf-to-relational" in app_name or "pdf to relational" in app_name:
+            if "files-to-relational" in app_name or "pdf to relational" in app_name:
                 subdomain = app.get("subdomain")
                 if subdomain and domain:
                     return f"https://{subdomain}.{domain}"
         
         return None
     except Exception as e:
-        raise Exception(f"Error getting pdf-to-relational workflow URL: {str(e)}")
+        raise Exception(f"Error getting files-to-relational workflow URL: {str(e)}")
 
