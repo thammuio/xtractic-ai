@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 import os
 
-from routers import workflows, datasets, ai, etl, mcp, rag
+from api.routers import workflows, datasets, ai, etl, mcp, rag
 from core.config import settings
 from core.database import init_db
 
