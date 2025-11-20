@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     CLOUDERA_API_KEY: str = os.getenv("CLOUDERA_API_KEY", "")
     CLOUDERA_WORKSPACE_ID: str = os.getenv("CLOUDERA_WORKSPACE_ID", "")
     
+    # Deployed Workflow Settings
+    DEPLOYED_WORKFLOW_URL: str = os.getenv(
+        "DEPLOYED_WORKFLOW_URL",
+        "https://workflow-0421b0de-eec0-4dab-9a72-00e31453cf14.ml-d248e68a-04a.se-sandb.a465-9q4k.cloudera.site"
+    )
+    CDSW_APIV2_KEY: str = os.getenv("CDSW_APIV2_KEY", "")
+    CDSW_PROJECT_ID: str = os.getenv("CDSW_PROJECT_ID", "")
+    CDSW_DOMAIN: str = os.getenv("CDSW_DOMAIN", "")
+    CDSW_APP_PORT: int = int(os.getenv("CDSW_APP_PORT", "9000"))
+    
     # MCP Server Settings
     MCP_SERVER_URL: str = os.getenv("MCP_SERVER_URL", "http://localhost:3001")
     MCP_API_KEY: str = os.getenv("MCP_API_KEY", "")

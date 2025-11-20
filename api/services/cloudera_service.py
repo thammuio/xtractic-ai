@@ -8,6 +8,11 @@ from datetime import datetime
 import uuid
 
 from core.config import settings
+from utils.cloudera_utils import (
+    get_cloudera_credentials,
+    get_workflow_endpoint,
+    get_cloudera_headers
+)
 
 
 class ClouderaService:
@@ -17,6 +22,21 @@ class ClouderaService:
         self.api_url = settings.CLOUDERA_API_URL
         self.api_key = settings.CLOUDERA_API_KEY
         self.workspace_id = settings.CLOUDERA_WORKSPACE_ID
+        
+        # Use utility functions for deployed workflow configuration
+        try:
+            self.deployed_workflow_url = get_workflow_endpoint()
+            self.deployed_headers = get_cloudera_headers()
+        except Exception:
+            # Fallback to settings if utilities fail
+            self.deployed_workflow_url = settings.DEPLOYED_WORKFLOW_URL
+            self.cdsw_api_key = settings.CDSW_APIV2_KEY
+            self.deployed_headers = {
+                "Authorization": f"Bearer {self.cdsw_api_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -157,3 +177,41 @@ class ClouderaService:
         endpoint = f"/workspaces/{self.workspace_id}/workflows/{workflow_id}/executions/{execution_id}/logs"
         response = await self._make_request("GET", endpoint)
         return response.get("logs", [])
+    
+    async def kickoff_deployed_workflow(self, pdf_url: str) -> Dict:
+        """Start deployed workflow with PDF URL"""
+        url = f"{self.deployed_workflow_url}/api/workflow/kickoff"
+        data = {
+            "inputs": {
+                "pdf_url": pdf_url
+            }
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=self.deployed_headers, json=data) as response:
+                if response.status >= 400:
+                    error = await response.text()
+                    raise Exception(f"Failed to start workflow: {error}")
+                result = await response.json()
+                return {
+                    "success": True,
+                    "trace_id": result.get("trace_id"),
+                    "message": "Workflow started successfully"
+                }
+    
+    async def get_deployed_workflow_events(self, trace_id: str) -> Dict:
+        """Get events from deployed workflow"""
+        url = f"{self.deployed_workflow_url}/api/workflow/events"
+        params = {"trace_id": trace_id}
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers={"Authorization": f"Bearer {self.cdsw_api_key}", "Accept": "application/json"}, params=params) as response:
+                if response.status >= 400:
+                    error = await response.text()
+                    raise Exception(f"Failed to get workflow events: {error}")
+                events = await response.json()
+                return {
+                    "success": True,
+                    "trace_id": trace_id,
+                    "events": events
+                }
