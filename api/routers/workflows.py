@@ -16,8 +16,8 @@ class WorkflowSubmitRequest(BaseModel):
     query: str
 
 
-@router.get("/stats")
-async def get_workflow_stats(
+@router.get("/details")
+async def get_workflows_details(
     limit: int = 50,
     status: Optional[str] = None
 ):
