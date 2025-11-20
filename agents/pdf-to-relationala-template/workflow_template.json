@@ -1,0 +1,74 @@
+{
+  "template_version": "0.0.1",
+  "workflow_template": {
+    "id": "aedd1205-7fb9-427b-9e2f-52a5e296448a",
+    "name": "pdf-to-relational",
+    "description": "",
+    "process": "sequential",
+    "agent_template_ids": [
+      "53a3ad9f-e5ac-4a8c-91e8-98875dba745c"
+    ],
+    "task_template_ids": [
+      "9e6ab39d-ca70-4213-93f4-8ed8bdb7d0d8"
+    ],
+    "is_conversational": false,
+    "pre_packaged": false
+  },
+  "agent_templates": [
+    {
+      "id": "53a3ad9f-e5ac-4a8c-91e8-98875dba745c",
+      "workflow_template_id": "aedd1205-7fb9-427b-9e2f-52a5e296448a",
+      "name": "Data Integration Specialist",
+      "description": "Data Integration Specialist",
+      "role": "Data Integration Specialist",
+      "backstory": "You have a decade of experience in data engineering, specializing in the integration of disparate data sources into cohesive systems. Your career began in database management, where you honed your skills in SQL and data transformation. Over the years, you've developed a keen eye for detail and a passion for automating complex data workflows. You believe in the power of clean, well-structured data to drive business insights and decision-making.",
+      "goal": "Streamline the process of extracting data from PDFs and transforming it into a format suitable for seamless insertion into PostgreSQL databases, ensuring data accuracy and integrity.",
+      "allow_delegation": false,
+      "verbose": false,
+      "cache": false,
+      "temperature": 0.10000000149011612,
+      "max_iter": 0,
+      "tool_template_ids": [
+        "94d87256-c8c6-4058-8531-1fb1dd97397a",
+        "329bfc4b-32eb-4c09-92f4-2007aebf758b"
+      ],
+      "mcp_template_ids": [],
+      "pre_packaged": false,
+      "agent_image_path": ""
+    }
+  ],
+  "tool_templates": [
+    {
+      "id": "94d87256-c8c6-4058-8531-1fb1dd97397a",
+      "workflow_template_id": "aedd1205-7fb9-427b-9e2f-52a5e296448a",
+      "name": "pdf-data-extraction",
+      "python_code_file_name": "tool.py",
+      "python_requirements_file_name": "requirements.txt",
+      "source_folder_path": "studio-data/tool_templates/pdf_data_extraction_9Iu7R8Cw",
+      "pre_built": false,
+      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/pdf_data_extraction_9Iu7R8Cw_icon.png",
+      "is_venv_tool": true
+    },
+    {
+      "id": "329bfc4b-32eb-4c09-92f4-2007aebf758b",
+      "workflow_template_id": "aedd1205-7fb9-427b-9e2f-52a5e296448a",
+      "name": "postgres-insert",
+      "python_code_file_name": "tool.py",
+      "python_requirements_file_name": "requirements.txt",
+      "source_folder_path": "studio-data/tool_templates/postgres_insert_G0QDX8ML",
+      "pre_built": false,
+      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/postgres_insert_G0QDX8ML_icon.png",
+      "is_venv_tool": true
+    }
+  ],
+  "mcp_templates": [],
+  "task_templates": [
+    {
+      "id": "9e6ab39d-ca70-4213-93f4-8ed8bdb7d0d8",
+      "workflow_template_id": "aedd1205-7fb9-427b-9e2f-52a5e296448a",
+      "description": "take the {pdf_url} provided and extract data ",
+      "expected_output": "once the Data is extracted save it in context and \n\ninsert into Supabase - create tables if needed\n\nif success give me json response on - success, table_name, any other detaisl that are helpful\n",
+      "assigned_agent_template_id": "53a3ad9f-e5ac-4a8c-91e8-98875dba745c"
+    }
+  ]
+}
