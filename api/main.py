@@ -11,7 +11,7 @@ import os
 
 from api.routers import workflows, datasets, ai, etl, mcp, rag
 from api.core.config import settings
-from core.database import init_db
+from api.core.database import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
