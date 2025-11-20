@@ -1,5 +1,5 @@
 """
-Utility functions
+Utility helper functions
 """
 from typing import Any, Dict
 import hashlib
