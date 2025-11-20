@@ -5,7 +5,6 @@ Integrates with Cloudera AI Agent Studio, MCP Servers, RAG, and Supabase
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from contextlib import asynccontextmanager
 import threading
 import uvicorn
 import os
@@ -15,38 +14,22 @@ from api.core.config import settings
 
 
 def create_app():
-    """Create and configure the FastAPI application"""
     CDSW_DOMAIN = os.getenv('CDSW_DOMAIN')
-    
     app = FastAPI()
-
-    # CORS middleware with Cloudera domain support
-    cors_origins = [
-        "*",
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://localhost:8000",
-        "https://xtracticai-cloudera.vercel.app",
-        "*.cloudera.site",
-    ]
-    
-    # Add CDSW domain origins if available
-    if CDSW_DOMAIN:
-        cors_origins.extend([
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "*",
             f"https://xtracticai-api.{CDSW_DOMAIN}",
             f"https://xtracticai-ui.{CDSW_DOMAIN}",
             f"https://{CDSW_DOMAIN}",
             f"https://*.{CDSW_DOMAIN}",
             f"*.{CDSW_DOMAIN}",
-            "https://xtracticai-cloudera.vercel.app",
+            "*.cloudera.site",
             "http://localhost:5173",
             "http://localhost:3000",
             "http://localhost:8000",
-        ])
-    
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=cors_origins,
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
