@@ -90,7 +90,6 @@ async def get_workflow_stats(
     """
     try:
         stats_service = StatsService()
-        await stats_service.init_schema()
         
         stats = await stats_service.get_workflow_submission_stats(
             limit=limit,

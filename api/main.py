@@ -38,11 +38,6 @@ def create_app():
 
     # Include routers
     app.include_router(workflows.router, prefix="/api/workflows", tags=["Workflows"])
-    app.include_router(datasets.router, prefix="/api/datasets", tags=["Datasets"])
-    app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
-    app.include_router(etl.router, prefix="/api/etl", tags=["ETL"])
-    app.include_router(mcp.router, prefix="/api/mcp", tags=["MCP"])
-    app.include_router(rag.router, prefix="/api/rag", tags=["RAG"])
     app.include_router(stats.router, prefix="/api/stats", tags=["Statistics"])
 
     @app.get("/")
