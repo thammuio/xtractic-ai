@@ -118,9 +118,7 @@ class StatsService:
             
             # Workflow submissions table (for tracking trace_id based submissions)
             await conn.execute("""
-                DROP TABLE IF EXISTS xtracticai.workflow_submissions;
-                
-                CREATE TABLE xtracticai.workflow_submissions (
+                CREATE TABLE IF NOT EXISTS xtracticai.workflow_submissions (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     trace_id VARCHAR NOT NULL UNIQUE,
                     workflow_url VARCHAR NOT NULL,
@@ -137,9 +135,9 @@ class StatsService:
                     last_polled_at TIMESTAMP,
                     completed_at TIMESTAMP
                 );
-                CREATE INDEX idx_workflow_submissions_trace_id ON xtracticai.workflow_submissions(trace_id);
-                CREATE INDEX idx_workflow_submissions_status ON xtracticai.workflow_submissions(status);
-                CREATE INDEX idx_workflow_submissions_submitted_at ON xtracticai.workflow_submissions(submitted_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_workflow_submissions_trace_id ON xtracticai.workflow_submissions(trace_id);
+                CREATE INDEX IF NOT EXISTS idx_workflow_submissions_status ON xtracticai.workflow_submissions(status);
+                CREATE INDEX IF NOT EXISTS idx_workflow_submissions_submitted_at ON xtracticai.workflow_submissions(submitted_at DESC);
             """)
     
     async def track_agent(self, agent_name: str, agent_type: str, status: str, deployment_url: str = None) -> str:
@@ -462,17 +460,17 @@ class StatsService:
         limit: int = 50,
         status: str = None
     ) -> Dict[str, Any]:
-        """Get unique workflow submissions correlated with file processing stats
+        """Get workflow submission statistics correlated with file processing stats
         
-        Returns unique rows based on filename (extracted from uploaded_file_url).
-        If multiple submissions exist for the same file, only the most recent one is returned.
+        Matches workflow_submissions with file_processing_stats by extracting filename
+        from uploaded_file_url and matching with file_name.
         
         Args:
-            limit: Maximum number of unique submissions to return
+            limit: Maximum number of submissions to return
             status: Optional status filter (submitted, in-progress, completed, failed)
             
         Returns:
-            Dictionary containing unique submissions list, count, and summary statistics
+            Dictionary containing submissions list, count, and summary statistics
         """
         pool = await self._get_pool()
         async with pool.acquire() as conn:
@@ -481,7 +479,7 @@ class StatsService:
             status_params = [limit, status] if status else [limit]
             
             # Query that joins workflow_submissions with file_processing_stats
-            # Uses DISTINCT ON to get unique rows per filename
+            # by extracting filename from uploaded_file_url
             query = f"""
                 WITH extracted_filenames AS (
                     SELECT 
@@ -491,7 +489,7 @@ class StatsService:
                     FROM xtracticai.workflow_submissions ws
                     {status_filter}
                 )
-                SELECT DISTINCT ON (ef.extracted_filename)
+                SELECT 
                     ef.id,
                     ef.trace_id,
                     ef.workflow_url,
@@ -522,7 +520,7 @@ class StatsService:
                 FROM extracted_filenames ef
                 LEFT JOIN xtracticai.file_processing_stats fps 
                     ON fps.file_name = ef.extracted_filename
-                ORDER BY ef.extracted_filename, ef.submitted_at DESC
+                ORDER BY ef.submitted_at DESC
                 LIMIT $1
             """
             

@@ -109,6 +109,25 @@ async def get_workflow_stats(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/stats/debug")
+async def debug_workflow_stats():
+    """Debug endpoint to check raw data in workflow_submissions table"""
+    try:
+        stats_service = StatsService()
+        await stats_service.init_schema()
+        
+        debug_info = await stats_service.get_workflow_submissions_debug()
+        
+        await stats_service.close()
+        
+        return {
+            "success": True,
+            "debug": debug_info
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/recent")
 async def get_recent_workflows(limit: int = 10):
     """Get recently executed workflows"""
