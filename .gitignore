@@ -224,3 +224,6 @@ desktop.ini
 *.sublime-*
 *.db
 .phoenix/
+
+.env.example.sh
+.DS_Store
