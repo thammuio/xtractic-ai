@@ -2,14 +2,13 @@
 FastAPI main application for Xtractic AI
 Integrates with Cloudera AI Agent Studio, MCP Servers, RAG, and Supabase
 """
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 import threading
 import uvicorn
 import os
 
-from api.routers import workflows, datasets, ai, etl, mcp, rag, stats
+from api.routers import workflows
 from api.core.config import settings
 
 
@@ -38,7 +37,6 @@ def create_app():
 
     # Include routers
     app.include_router(workflows.router, prefix="/api/workflows", tags=["Workflows"])
-    app.include_router(stats.router, prefix="/api/stats", tags=["Statistics"])
 
     @app.get("/")
     async def root():

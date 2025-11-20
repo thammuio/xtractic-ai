@@ -14,7 +14,6 @@ from api.utils.cloudera_utils import (
     get_cloudera_credentials,
     get_workflow_endpoint,
     get_cloudera_headers,
-    get_workflow_application_url,
     get_pdf_to_relational_workflow_url,
     get_env_var
 )

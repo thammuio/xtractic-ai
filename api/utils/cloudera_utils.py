@@ -2,10 +2,8 @@
 Cloudera AI utility functions for environment variables and API interactions
 """
 import os
-import json
 import requests
 from typing import Optional, List, Dict
-import cmlapi
 
 
 def get_env_var(var_name: str, default: Optional[str] = None) -> str:
@@ -45,47 +43,6 @@ def get_cloudera_credentials() -> dict:
     }
 
 
-def get_cml_client() -> cmlapi.CMLServiceApi:
-    """
-    Create and return a CML API client
-    
-    Returns:
-        Configured CML API client
-    """
-    credentials = get_cloudera_credentials()
-    return cmlapi.default_client(
-        credentials["workspace_domain"],
-        credentials["api_key"]
-    )
-
-
-def get_app_id(cml_client: cmlapi.CMLServiceApi, project_id: str, app_name: str) -> str:
-    """
-    Get application ID by name
-    
-    Args:
-        cml_client: CML API client
-        project_id: Project ID
-        app_name: Name of the application
-        
-    Returns:
-        Application ID
-        
-    Raises:
-        Exception: If API error occurs
-    """
-    try:
-        app_list = cml_client.list_applications(
-            project_id,
-            search_filter=json.dumps({"name": app_name})
-        )
-        if not app_list.applications:
-            raise Exception(f"Application '{app_name}' not found")
-        return app_list.applications[0].id
-    except cmlapi.exceptions.ApiException as e:
-        raise Exception(f"API error occurred while getting app ID: {str(e)}")
-
-
 def get_workflow_endpoint() -> str:
     """
     Get the deployed workflow endpoint URL
@@ -122,74 +79,6 @@ def get_cloudera_headers() -> dict:
         "Content-Type": "application/json",
         "Accept": "application/json"
     }
-
-
-def setup_applications(api_subdomain: str = "xtracticai-api", ui_subdomain: str = "xtracticai-ui") -> dict:
-    """
-    Setup and configure API and UI applications
-    
-    Args:
-        api_subdomain: Subdomain for API application
-        ui_subdomain: Subdomain for UI application
-        
-    Returns:
-        Dictionary containing setup results
-    """
-    try:
-        credentials = get_cloudera_credentials()
-        cml_client = get_cml_client()
-        project_id = credentials["project_id"]
-        
-        # Setup API application
-        api_app_id = get_app_id(cml_client, project_id, "API for Chatbot")
-        update_and_restart_app(cml_client, project_id, api_app_id, api_subdomain)
-        
-        # Setup UI application
-        ui_app_id = get_app_id(cml_client, project_id, "Frontend UI")
-        update_and_restart_app(cml_client, project_id, ui_app_id, ui_subdomain)
-        
-        return {
-            "success": True,
-            "api_app_id": api_app_id,
-            "ui_app_id": ui_app_id,
-            "api_subdomain": api_subdomain,
-            "ui_subdomain": ui_subdomain,
-            "message": "Applications configured and restarted successfully"
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "Failed to setup applications"
-        }
-
-
-def get_all_cloudera_env_vars() -> dict:
-    """
-    Get all Cloudera-related environment variables
-    
-    Returns:
-        Dictionary containing all available Cloudera environment variables
-    """
-    env_vars = {}
-    cloudera_keys = [
-        "CDSW_DOMAIN",
-        "CDSW_APIV2_KEY",
-        "CDSW_PROJECT_ID",
-        "CDSW_APP_PORT",
-        "DEPLOYED_WORKFLOW_URL",
-        "CLOUDERA_API_URL",
-        "CLOUDERA_API_KEY",
-        "CLOUDERA_WORKSPACE_ID"
-    ]
-    
-    for key in cloudera_keys:
-        try:
-            env_vars[key] = get_env_var(key)
-        except Exception:
-            env_vars[key] = None
-    
-    return env_vars
 
 
 def get_project_id_by_name_contains(name_contains: str) -> Optional[str]:
@@ -245,42 +134,6 @@ def get_project_id_by_name_contains(name_contains: str) -> Optional[str]:
         raise Exception(f"Error fetching project ID: {str(e)}")
 
 
-def get_all_projects() -> List[Dict]:
-    """
-    Get all projects from Cloudera AI
-    
-    Returns:
-        List of project dictionaries
-        
-    Raises:
-        Exception: If API error occurs or credentials are missing
-    """
-    try:
-        domain = get_env_var("CDSW_DOMAIN")
-        api_key = get_env_var("CDSW_APIV2_KEY")
-        
-        # Ensure domain has protocol
-        if not domain.startswith("http"):
-            domain = f"https://{domain}"
-        
-        url = f"{domain}/api/v2/projects"
-        headers = {
-            "accept": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
-        
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        
-        data = response.json()
-        return data.get("projects", [])
-        
-    except requests.exceptions.RequestException as e:
-        raise Exception(f"API error occurred while fetching projects: {str(e)}")
-    except Exception as e:
-        raise Exception(f"Error fetching projects: {str(e)}")
-
-
 def get_applications_by_project_name_contains(name_contains: str) -> List[Dict]:
     """
     Get all applications from projects where the name contains the specified string
@@ -333,47 +186,6 @@ def get_applications_by_project_name_contains(name_contains: str) -> List[Dict]:
         raise Exception(f"Error fetching applications: {str(e)}")
 
 
-def get_agent_studio_applications() -> List[Dict]:
-    """
-    Get all applications from Agent Studio project
-    Convenience function that searches for projects with "Agent Studio" in the name
-    
-    Returns:
-        List of application dictionaries from Agent Studio project
-        
-    Raises:
-        Exception: If API error occurs or credentials are missing
-    """
-    return get_applications_by_project_name_contains("Agent Studio")
-
-
-def get_workflow_application_url() -> Optional[str]:
-    """
-    Get the URL of the first workflow application from Agent Studio
-    
-    Returns:
-        Full URL to the workflow application (e.g., https://subdomain.domain.com)
-        Returns None if no workflow found
-        
-    Raises:
-        Exception: If API error occurs or credentials are missing
-    """
-    try:
-        applications = get_agent_studio_applications()
-        domain = get_env_var("CDSW_DOMAIN")
-        
-        # Find first application that is a workflow (contains "Workflow:" in name)
-        for app in applications:
-            if "Workflow:" in app.get("name", ""):
-                subdomain = app.get("subdomain")
-                if subdomain and domain:
-                    return f"https://{subdomain}.{domain}"
-        
-        return None
-    except Exception as e:
-        raise Exception(f"Error getting workflow application URL: {str(e)}")
-
-
 def get_pdf_to_relational_workflow_url() -> Optional[str]:
     """
     Get the URL of the files-to-relational workflow application from Agent Studio
@@ -386,7 +198,7 @@ def get_pdf_to_relational_workflow_url() -> Optional[str]:
         Exception: If API error occurs or credentials are missing
     """
     try:
-        applications = get_agent_studio_applications()
+        applications = get_applications_by_project_name_contains("Agent Studio")
         domain = get_env_var("CDSW_DOMAIN")
         
         # Find application with "files-to-relational" in the name
