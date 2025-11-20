@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 import uvicorn
-import threading
 import os
 
 from routers import workflows, datasets, ai, etl, mcp, rag
@@ -95,17 +94,25 @@ def create_app():
     
     return app
 
-def run_server(app, host="127.0.0.1", port=None, log_level="warning", reload=False):
-    """Run the uvicorn server"""
-    if port is None:
-        port = int(os.getenv('CDSW_APP_PORT', 9000))  # Default to 9000 if CDSW_APP_PORT is not set
-    uvicorn.run(app, host=host, port=port, log_level=log_level, reload=reload)
-
-def main():
-    """Main entry point for Cloudera AI Workbench"""
-    app = create_app()
-    server_thread = threading.Thread(target=run_server, args=(app,))
-    server_thread.start()
+# Create the app instance at module level for Cloudera Workbench
+app = create_app()
 
 if __name__ == "__main__":
-    main()
+    # Get configuration from environment variables
+    # CDSW_APP_PORT is automatically set by Cloudera Workbench
+    host = os.getenv('CDSW_APP_HOST', '127.0.0.1')
+    port = int(os.getenv('CDSW_APP_PORT', 9000))
+    
+    print(f"Starting Xtractic AI API on {host}:{port}")
+    print(f"Swagger UI: http://{host}:{port}/docs")
+    print(f"ReDoc: http://{host}:{port}/redoc")
+    
+    # Run uvicorn server
+    # For Cloudera Workbench, this will keep the application running
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        log_level="info",
+        reload=False
+    )
