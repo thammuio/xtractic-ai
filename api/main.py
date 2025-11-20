@@ -6,33 +6,19 @@ from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
+import threading
 import uvicorn
 import os
 
 from api.routers import workflows, datasets, ai, etl, mcp, rag
 from api.core.config import settings
-from api.core.database import init_db
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan events"""
-    # Startup
-    print("Starting Xtractic AI API...")
-    await init_db()
-    yield
-    # Shutdown
-    print("Shutting down Xtractic AI API...")
 
 def create_app():
     """Create and configure the FastAPI application"""
     CDSW_DOMAIN = os.getenv('CDSW_DOMAIN')
     
-    app = FastAPI(
-        title="Xtractic AI API",
-        description="API for interacting with Cloudera AI Agent Studio, MCP Servers, RAG, and Supabase",
-        version="1.0.0",
-        lifespan=lifespan
-    )
+    app = FastAPI()
 
     # CORS middleware with Cloudera domain support
     cors_origins = [
@@ -94,25 +80,15 @@ def create_app():
     
     return app
 
-# Create the app instance at module level for Cloudera Workbench
-app = create_app()
+def run_server(app, host="127.0.0.1", port=None, log_level="warning", reload=False):
+    if port is None:
+        port = int(os.getenv('CDSW_APP_PORT', 9000))  # Default to 8080 if API_PORT is not set
+    uvicorn.run(app, host=host, port=port, log_level=log_level, reload=reload)
+
+def main():
+    app = create_app()
+    server_thread = threading.Thread(target=run_server, args=(app,))
+    server_thread.start()
 
 if __name__ == "__main__":
-    # Get configuration from environment variables
-    # CDSW_APP_PORT is automatically set by Cloudera Workbench
-    host = os.getenv('CDSW_APP_HOST', '127.0.0.1')
-    port = int(os.getenv('CDSW_APP_PORT', 9000))
-    
-    print(f"Starting Xtractic AI API on {host}:{port}")
-    print(f"Swagger UI: http://{host}:{port}/docs")
-    print(f"ReDoc: http://{host}:{port}/redoc")
-    
-    # Run uvicorn server
-    # For Cloudera Workbench, this will keep the application running
-    uvicorn.run(
-        app,
-        host=host,
-        port=port,
-        log_level="info",
-        reload=False
-    )
+    main()
