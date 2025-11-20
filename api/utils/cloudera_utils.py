@@ -3,7 +3,8 @@ Cloudera AI utility functions for environment variables and API interactions
 """
 import os
 import json
-from typing import Optional
+import requests
+from typing import Optional, List, Dict
 import cmlapi
 
 
@@ -189,3 +190,141 @@ def get_all_cloudera_env_vars() -> dict:
             env_vars[key] = None
     
     return env_vars
+
+
+def get_project_id_by_name_contains(name_contains: str) -> Optional[str]:
+    """
+    Get project ID where the project name contains the specified string
+    
+    Args:
+        name_contains: String to search for in project names (case-insensitive)
+        
+    Returns:
+        Project ID if found, None otherwise
+        
+    Raises:
+        Exception: If API error occurs or credentials are missing
+    """
+    try:
+        domain = get_env_var("CDSW_DOMAIN")
+        api_key = get_env_var("CDSW_APIV2_KEY")
+        
+        url = f"{domain}/api/v2/projects"
+        headers = {
+            "accept": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        
+        data = response.json()
+        projects = data.get("projects", [])
+        
+        # Search for project with name containing the specified string (case-insensitive)
+        name_lower = name_contains.lower()
+        for project in projects:
+            if name_lower in project.get("name", "").lower():
+                return project.get("id")
+        
+        return None
+        
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"API error occurred while fetching projects: {str(e)}")
+    except Exception as e:
+        raise Exception(f"Error fetching project ID: {str(e)}")
+
+
+def get_all_projects() -> List[Dict]:
+    """
+    Get all projects from Cloudera AI
+    
+    Returns:
+        List of project dictionaries
+        
+    Raises:
+        Exception: If API error occurs or credentials are missing
+    """
+    try:
+        domain = get_env_var("CDSW_DOMAIN")
+        api_key = get_env_var("CDSW_APIV2_KEY")
+        
+        url = f"{domain}/api/v2/projects"
+        headers = {
+            "accept": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        
+        data = response.json()
+        return data.get("projects", [])
+        
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"API error occurred while fetching projects: {str(e)}")
+    except Exception as e:
+        raise Exception(f"Error fetching projects: {str(e)}")
+
+
+def get_applications_by_project_name_contains(name_contains: str) -> List[Dict]:
+    """
+    Get all applications from projects where the name contains the specified string
+    
+    Args:
+        name_contains: String to search for in project names (case-insensitive)
+        
+    Returns:
+        List of application dictionaries with project info
+        
+    Raises:
+        Exception: If API error occurs or credentials are missing
+    """
+    try:
+        domain = get_env_var("CDSW_DOMAIN")
+        api_key = get_env_var("CDSW_APIV2_KEY")
+        
+        # First, get the project ID
+        project_id = get_project_id_by_name_contains(name_contains)
+        
+        if not project_id:
+            return []
+        
+        # Get applications for the project
+        url = f"{domain}/api/v2/projects/{project_id}/applications"
+        headers = {
+            "accept": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        
+        data = response.json()
+        applications = data.get("applications", [])
+        
+        # Add project_id to each application for reference
+        for app in applications:
+            app["project_id"] = project_id
+        
+        return applications
+        
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"API error occurred while fetching applications: {str(e)}")
+    except Exception as e:
+        raise Exception(f"Error fetching applications: {str(e)}")
+
+
+def get_agent_studio_applications() -> List[Dict]:
+    """
+    Get all applications from Agent Studio project
+    Convenience function that searches for projects with "Agent Studio" in the name
+    
+    Returns:
+        List of application dictionaries from Agent Studio project
+        
+    Raises:
+        Exception: If API error occurs or credentials are missing
+    """
+    return get_applications_by_project_name_contains("Agent Studio")
+
