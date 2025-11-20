@@ -195,6 +195,7 @@ def get_all_cloudera_env_vars() -> dict:
 def get_project_id_by_name_contains(name_contains: str) -> Optional[str]:
     """
     Get project ID where the project name contains the specified string
+    Supports patterns like "Agent Studio", "Agent Studio - suri", etc.
     
     Args:
         name_contains: String to search for in project names (case-insensitive)
@@ -206,6 +207,8 @@ def get_project_id_by_name_contains(name_contains: str) -> Optional[str]:
         Exception: If API error occurs or credentials are missing
     """
     try:
+        import re
+        
         domain = get_env_var("CDSW_DOMAIN")
         api_key = get_env_var("CDSW_APIV2_KEY")
         
@@ -221,10 +224,13 @@ def get_project_id_by_name_contains(name_contains: str) -> Optional[str]:
         data = response.json()
         projects = data.get("projects", [])
         
-        # Search for project with name containing the specified string (case-insensitive)
-        name_lower = name_contains.lower()
+        # Create a regex pattern that matches the name_contains at the start
+        # This will match "Agent Studio", "Agent Studio - suri", "Agent Studio - anything", etc.
+        pattern = re.compile(rf"^{re.escape(name_contains)}(\s*-\s*.*)?$", re.IGNORECASE)
+        
         for project in projects:
-            if name_lower in project.get("name", "").lower():
+            project_name = project.get("name", "")
+            if pattern.match(project_name):
                 return project.get("id")
         
         return None

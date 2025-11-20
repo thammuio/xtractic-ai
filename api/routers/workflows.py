@@ -283,7 +283,20 @@ async def get_deployed_workflow_events(trace_id: str):
 async def get_deployed_workflows():
     """Get all deployed workflows/applications from Agent Studio project"""
     try:
-        applications = get_agent_studio_applications()
+        # Get applications with better error handling
+        try:
+            applications = get_agent_studio_applications()
+        except Exception as app_error:
+            # Return empty list with error details instead of failing
+            return {
+                "success": False,
+                "data": [],
+                "count": 0,
+                "workflow_count": 0,
+                "running_count": 0,
+                "error": str(app_error),
+                "message": f"Failed to fetch applications from Agent Studio: {str(app_error)}"
+            }
         
         # Get CDSW_DOMAIN for URL construction
         try:
