@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
 
-from api.api.core.config import settings
+from api.core.config import settings
 from api.utils.cloudera_utils import (
     get_cloudera_credentials,
     get_workflow_endpoint,

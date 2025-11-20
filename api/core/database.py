@@ -5,7 +5,7 @@ from supabase import create_client, Client
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
-from api.api.core.config import settings
+from api.core.config import settings
 import asyncpg
 
 Base = declarative_base()

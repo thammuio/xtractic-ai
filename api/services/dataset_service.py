@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 import json
 
 from api.core.database import get_supabase
-from api.api.core.config import settings
+from api.core.config import settings
 
 
 class DatasetService:
