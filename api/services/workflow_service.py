@@ -7,7 +7,13 @@ from datetime import datetime
 import uuid
 
 from api.core.config import settings
-
+from api.utils.cloudera_utils import (
+    get_all_cloudera_env_vars,
+    setup_applications,
+    get_cloudera_credentials,
+    get_agent_studio_applications,
+    get_env_var
+)
 
 class WorkflowService:
     """Service for tracking workflow submissions and file processing statistics"""
