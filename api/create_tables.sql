@@ -5,49 +5,6 @@
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS xtracticai;
 
--- Agent stats table
-CREATE TABLE IF NOT EXISTS xtracticai.agent_stats (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_name VARCHAR(255) NOT NULL,
-    agent_type VARCHAR(100),
-    status VARCHAR(50),
-    deployment_url TEXT,
-    total_executions INTEGER DEFAULT 0,
-    successful_executions INTEGER DEFAULT 0,
-    failed_executions INTEGER DEFAULT 0,
-    last_execution_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_agent_stats_name ON xtracticai.agent_stats(agent_name);
-CREATE INDEX IF NOT EXISTS idx_agent_stats_status ON xtracticai.agent_stats(status);
-
-COMMENT ON TABLE xtracticai.agent_stats IS 'Tracks agent deployments and execution statistics';
-COMMENT ON COLUMN xtracticai.agent_stats.agent_name IS 'Unique name of the agent';
-COMMENT ON COLUMN xtracticai.agent_stats.status IS 'Current status: deployed, stopped, running';
-
--- MCP server stats table
-CREATE TABLE IF NOT EXISTS xtracticai.mcp_server_stats (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    server_name VARCHAR(255) NOT NULL,
-    server_type VARCHAR(100),
-    status VARCHAR(50),
-    endpoint_url TEXT,
-    total_calls INTEGER DEFAULT 0,
-    successful_calls INTEGER DEFAULT 0,
-    failed_calls INTEGER DEFAULT 0,
-    last_call_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_mcp_stats_name ON xtracticai.mcp_server_stats(server_name);
-CREATE INDEX IF NOT EXISTS idx_mcp_stats_status ON xtracticai.mcp_server_stats(status);
-
-COMMENT ON TABLE xtracticai.mcp_server_stats IS 'Tracks MCP server statistics and call metrics';
-COMMENT ON COLUMN xtracticai.mcp_server_stats.server_type IS 'Type of MCP server: acled, fewsnet, nifi, etc.';
-
 -- File processing stats table
 CREATE TABLE IF NOT EXISTS xtracticai.file_processing_stats (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
