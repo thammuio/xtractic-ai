@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS xtracticai.workflow_submissions (
     execution_id UUID,
     file_id UUID,
     error_message TEXT,
-    metadata JSONB,
+    meta_data JSONB,
     submitted_at TIMESTAMP DEFAULT NOW(),
     last_polled_at TIMESTAMP,
     completed_at TIMESTAMP

@@ -293,7 +293,7 @@ class ClouderaService:
                             status="submitted",
                             workflow_id="files-to-relational",
                             workflow_name="PDF to Relational",
-                            metadata={"response": result},
+                            meta_data={"response": result},
                             submitted_at=datetime.utcnow()
                         )
                         session.add(submission)
@@ -412,7 +412,7 @@ class ClouderaService:
                             .where(WorkflowSubmission.trace_id == trace_id)
                             .values(
                                 status="in-progress",
-                                metadata={"latest_events": events}
+                                meta_data={"latest_events": events}
                             )
                         )
                         await session.execute(stmt)

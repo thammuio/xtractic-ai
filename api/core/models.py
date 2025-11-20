@@ -51,7 +51,7 @@ class Document(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     content = Column(Text, nullable=False)
-    metadata = Column(JSON)
+    meta_data = Column(JSON)
     collection = Column(String, default="default")
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -125,7 +125,7 @@ class WorkflowExecutionStats(Base):
     tools_used = Column(JSON)  # List of tools/MCPs used
     duration_ms = Column(Float)
     error_message = Column(Text)
-    metadata = Column(JSON)
+    meta_data = Column(JSON)
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
 
@@ -145,7 +145,7 @@ class WorkflowSubmission(Base):
     execution_id = Column(UUID(as_uuid=True))
     file_id = Column(UUID(as_uuid=True))
     error_message = Column(Text)
-    metadata = Column(JSON)
+    meta_data = Column(JSON)
     submitted_at = Column(DateTime, default=datetime.utcnow)
     last_polled_at = Column(DateTime)
     completed_at = Column(DateTime)
