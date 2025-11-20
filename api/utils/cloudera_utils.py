@@ -212,6 +212,10 @@ def get_project_id_by_name_contains(name_contains: str) -> Optional[str]:
         domain = get_env_var("CDSW_DOMAIN")
         api_key = get_env_var("CDSW_APIV2_KEY")
         
+        # Ensure domain has protocol
+        if not domain.startswith("http"):
+            domain = f"https://{domain}"
+        
         url = f"{domain}/api/v2/projects"
         headers = {
             "accept": "application/json",
@@ -255,6 +259,10 @@ def get_all_projects() -> List[Dict]:
         domain = get_env_var("CDSW_DOMAIN")
         api_key = get_env_var("CDSW_APIV2_KEY")
         
+        # Ensure domain has protocol
+        if not domain.startswith("http"):
+            domain = f"https://{domain}"
+        
         url = f"{domain}/api/v2/projects"
         headers = {
             "accept": "application/json",
@@ -295,6 +303,10 @@ def get_applications_by_project_name_contains(name_contains: str) -> List[Dict]:
         
         if not project_id:
             return []
+        
+        # Ensure domain has protocol
+        if not domain.startswith("http"):
+            domain = f"https://{domain}"
         
         # Get applications for the project
         url = f"{domain}/api/v2/projects/{project_id}/applications"
