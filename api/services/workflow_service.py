@@ -250,22 +250,22 @@ class WorkflowService:
             # Query to aggregate workflow data from both tables
             query = """
                 WITH workflow_files AS (
-                    -- Get workflow info from workflow_submissions
+                    -- Get workflow info from workflow_submissions with LEFT JOIN to file_processing_stats
                     SELECT 
-                        COALESCE(ws.workflow_id, fps.workflow_id) as workflow_id,
-                        COALESCE(ws.workflow_name, fps.workflow_name) as workflow_name,
+                        ws.workflow_id as workflow_id,
+                        ws.workflow_name as workflow_name,
                         fps.file_type,
-                        fps.file_name,
+                        COALESCE(fps.file_name, ws.file_name, REGEXP_REPLACE(ws.uploaded_file_url, '.*/', '')) as file_name,
                         fps.processing_status,
                         fps.records_extracted,
                         fps.completed_at,
                         ws.status as submission_status,
                         ws.submitted_at,
-                        COALESCE(fps.completed_at, ws.completed_at, fps.uploaded_at) as last_activity
+                        COALESCE(fps.completed_at, ws.completed_at, fps.uploaded_at, ws.submitted_at) as last_activity
                     FROM xtracticai.workflow_submissions ws
-                    FULL OUTER JOIN xtracticai.file_processing_stats fps 
+                    LEFT JOIN xtracticai.file_processing_stats fps 
                         ON fps.file_name = COALESCE(ws.file_name, REGEXP_REPLACE(ws.uploaded_file_url, '.*/', ''))
-                    WHERE COALESCE(ws.workflow_id, fps.workflow_id) IS NOT NULL
+                    WHERE ws.workflow_id IS NOT NULL
                 ),
                 workflow_summary AS (
                     SELECT 
