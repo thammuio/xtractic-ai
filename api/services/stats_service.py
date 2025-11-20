@@ -343,95 +343,122 @@ class StatsService:
         limit: int = 50,
         status: str = None
     ) -> Dict[str, Any]:
-        """Get workflow submission statistics correlated with file processing stats
+        """Get workflow submission statistics with file processing stats using UNION
         
-        Matches workflow_submissions with file_processing_stats by extracting filename
-        from uploaded_file_url and matching with file_name.
+        Returns combined details from both workflow_submissions and file_processing_stats
+        tables, matching on file_name. This ensures all files from both sources are included.
         
         Args:
-            limit: Maximum number of submissions to return
+            limit: Maximum number of records to return
             status: Optional status filter (submitted, in-progress, completed, failed)
             
         Returns:
-            Dictionary containing submissions list, count, and summary statistics
+            Dictionary containing combined data list, count, and summary statistics
         """
         pool = await self._get_pool()
         async with pool.acquire() as conn:
-            # Build query with optional status filter
-            status_filter = "WHERE ws.status = $2" if status else ""
+            # Build query with UNION to get all unique files from both tables
+            # Status filter only applies to workflow_submissions part
+            status_filter = "AND ws.status = $2" if status else ""
             status_params = [limit, status] if status else [limit]
             
-            # Query that joins workflow_submissions with file_processing_stats
-            # by extracting filename from uploaded_file_url
+            # Query that UNIONs both tables based on file_name
             query = f"""
                 WITH extracted_filenames AS (
                     SELECT 
-                        ws.*,
-                        -- Extract filename from URL (after last /)
-                        REGEXP_REPLACE(ws.uploaded_file_url, '.*/', '') as extracted_filename
+                        ws.id as ws_id,
+                        ws.trace_id,
+                        ws.workflow_url,
+                        ws.uploaded_file_url,
+                        ws.file_name as ws_file_name,
+                        ws.query,
+                        ws.status,
+                        ws.workflow_id as ws_workflow_id,
+                        ws.workflow_name as ws_workflow_name,
+                        ws.execution_id,
+                        ws.file_id,
+                        ws.error_message as ws_error_message,
+                        ws.metadata,
+                        ws.submitted_at,
+                        ws.last_polled_at,
+                        ws.completed_at as ws_completed_at,
+                        -- Extract filename from URL (after last /) if file_name is null
+                        COALESCE(ws.file_name, REGEXP_REPLACE(ws.uploaded_file_url, '.*/', '')) as extracted_filename
                     FROM xtracticai.workflow_submissions ws
-                    {status_filter}
+                    WHERE 1=1 {status_filter}
+                ),
+                combined_data AS (
+                    -- Get all workflow submissions with their file processing data
+                    SELECT 
+                        ef.extracted_filename as file_name,
+                        ef.ws_id,
+                        ef.trace_id,
+                        ef.workflow_url,
+                        ef.uploaded_file_url,
+                        ef.query,
+                        ef.status,
+                        ef.ws_workflow_id,
+                        ef.ws_workflow_name,
+                        ef.execution_id,
+                        ef.file_id,
+                        ef.ws_error_message,
+                        ef.metadata,
+                        ef.submitted_at,
+                        ef.last_polled_at,
+                        ef.ws_completed_at,
+                        fps.id as file_processing_id,
+                        fps.file_type,
+                        fps.file_size_bytes,
+                        fps.processing_status,
+                        fps.records_extracted,
+                        fps.workflow_id as fps_workflow_id,
+                        fps.workflow_name as fps_workflow_name,
+                        fps.processing_duration_ms,
+                        fps.uploaded_at as file_uploaded_at,
+                        fps.completed_at as file_completed_at,
+                        fps.error_message as file_error_message,
+                        COALESCE(ef.submitted_at, fps.uploaded_at) as sort_date
+                    FROM extracted_filenames ef
+                    FULL OUTER JOIN xtracticai.file_processing_stats fps 
+                        ON fps.file_name = ef.extracted_filename
                 )
-                SELECT 
-                    ef.id,
-                    ef.trace_id,
-                    ef.workflow_url,
-                    ef.uploaded_file_url,
-                    ef.query,
-                    ef.status,
-                    ef.workflow_id,
-                    ef.workflow_name,
-                    ef.execution_id,
-                    ef.file_id,
-                    ef.error_message,
-                    ef.metadata,
-                    ef.submitted_at,
-                    ef.last_polled_at,
-                    ef.completed_at,
-                    ef.extracted_filename,
-                    -- File processing details
-                    fps.id as file_processing_id,
-                    fps.file_name,
-                    fps.file_type,
-                    fps.file_size_bytes,
-                    fps.processing_status,
-                    fps.records_extracted,
-                    fps.processing_duration_ms,
-                    fps.uploaded_at as file_uploaded_at,
-                    fps.completed_at as file_completed_at,
-                    fps.error_message as file_error_message
-                FROM extracted_filenames ef
-                LEFT JOIN xtracticai.file_processing_stats fps 
-                    ON fps.file_name = ef.extracted_filename
-                ORDER BY ef.submitted_at DESC
+                SELECT * FROM combined_data
+                ORDER BY sort_date DESC NULLS LAST
                 LIMIT $1
             """
             
             rows = await conn.fetch(query, *status_params)
             
-            # Convert to list of dicts with nested structure
+            # Convert to list of dicts with combined structure
             submissions = []
             for row in rows:
                 submission = {
-                    "id": str(row["id"]),
-                    "trace_id": row["trace_id"],
-                    "workflow_url": row["workflow_url"],
-                    "uploaded_file_url": row["uploaded_file_url"],
-                    "query": row["query"],
-                    "status": row["status"],
-                    "workflow_id": row["workflow_id"],
-                    "workflow_name": row["workflow_name"],
-                    "execution_id": str(row["execution_id"]) if row["execution_id"] else None,
-                    "file_id": str(row["file_id"]) if row["file_id"] else None,
-                    "error_message": row["error_message"],
-                    "metadata": row["metadata"],
-                    "submitted_at": row["submitted_at"].isoformat() if row["submitted_at"] else None,
-                    "last_polled_at": row["last_polled_at"].isoformat() if row["last_polled_at"] else None,
-                    "completed_at": row["completed_at"].isoformat() if row["completed_at"] else None,
-                    "extracted_filename": row["extracted_filename"],
+                    "file_name": row["file_name"],
+                    "workflow_submission": None,
+                    "file_processing": None
                 }
                 
-                # Add file processing details if matched
+                # Add workflow submission details if present
+                if row["ws_id"]:
+                    submission["workflow_submission"] = {
+                        "id": str(row["ws_id"]),
+                        "trace_id": row["trace_id"],
+                        "workflow_url": row["workflow_url"],
+                        "uploaded_file_url": row["uploaded_file_url"],
+                        "query": row["query"],
+                        "status": row["status"],
+                        "workflow_id": row["ws_workflow_id"],
+                        "workflow_name": row["ws_workflow_name"],
+                        "execution_id": str(row["execution_id"]) if row["execution_id"] else None,
+                        "file_id": str(row["file_id"]) if row["file_id"] else None,
+                        "error_message": row["ws_error_message"],
+                        "metadata": row["metadata"],
+                        "submitted_at": row["submitted_at"].isoformat() if row["submitted_at"] else None,
+                        "last_polled_at": row["last_polled_at"].isoformat() if row["last_polled_at"] else None,
+                        "completed_at": row["ws_completed_at"].isoformat() if row["ws_completed_at"] else None,
+                    }
+                
+                # Add file processing details if present
                 if row["file_processing_id"]:
                     submission["file_processing"] = {
                         "id": str(row["file_processing_id"]),
@@ -440,43 +467,71 @@ class StatsService:
                         "file_size_bytes": row["file_size_bytes"],
                         "processing_status": row["processing_status"],
                         "records_extracted": row["records_extracted"],
+                        "workflow_id": row["fps_workflow_id"],
+                        "workflow_name": row["fps_workflow_name"],
                         "processing_duration_ms": float(row["processing_duration_ms"]) if row["processing_duration_ms"] else None,
                         "uploaded_at": row["file_uploaded_at"].isoformat() if row["file_uploaded_at"] else None,
                         "completed_at": row["file_completed_at"].isoformat() if row["file_completed_at"] else None,
                         "error_message": row["file_error_message"]
                     }
-                else:
-                    submission["file_processing"] = None
                 
                 submissions.append(submission)
             
-            # Get summary statistics
+            # Get summary statistics from both tables
             summary_query = """
-                SELECT 
-                    COUNT(*) as total_submissions,
-                    COUNT(*) FILTER (WHERE status = 'submitted') as submitted_count,
-                    COUNT(*) FILTER (WHERE status = 'in-progress') as in_progress_count,
-                    COUNT(*) FILTER (WHERE status = 'completed') as completed_count,
-                    COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
-                    COUNT(DISTINCT workflow_id) as unique_workflows
-                FROM xtracticai.workflow_submissions
+                WITH ws_stats AS (
+                    SELECT 
+                        COUNT(*) as total_submissions,
+                        COUNT(*) FILTER (WHERE status = 'submitted') as submitted_count,
+                        COUNT(*) FILTER (WHERE status = 'in-progress') as in_progress_count,
+                        COUNT(*) FILTER (WHERE status = 'completed') as completed_count,
+                        COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
+                        COUNT(DISTINCT workflow_id) as unique_workflows
+                    FROM xtracticai.workflow_submissions
             """
             
             if status:
                 summary_query += " WHERE status = $1"
+            
+            summary_query += """
+                ),
+                fps_stats AS (
+                    SELECT 
+                        COUNT(*) as total_files,
+                        COUNT(*) FILTER (WHERE processing_status = 'completed') as completed_files,
+                        COUNT(*) FILTER (WHERE processing_status = 'failed') as failed_files,
+                        COUNT(*) FILTER (WHERE processing_status = 'processing') as processing_files,
+                        COALESCE(SUM(records_extracted), 0) as total_records_extracted,
+                        COALESCE(SUM(file_size_bytes), 0) as total_file_size_bytes
+                    FROM xtracticai.file_processing_stats
+                )
+                SELECT * FROM ws_stats, fps_stats
+            """
+            
+            if status:
                 summary_row = await conn.fetchrow(summary_query, status)
             else:
                 summary_row = await conn.fetchrow(summary_query)
             
             summary = {
-                "total_submissions": summary_row["total_submissions"],
-                "by_status": {
-                    "submitted": summary_row["submitted_count"],
-                    "in_progress": summary_row["in_progress_count"],
-                    "completed": summary_row["completed_count"],
-                    "failed": summary_row["failed_count"]
+                "workflow_submissions": {
+                    "total": summary_row["total_submissions"],
+                    "by_status": {
+                        "submitted": summary_row["submitted_count"],
+                        "in_progress": summary_row["in_progress_count"],
+                        "completed": summary_row["completed_count"],
+                        "failed": summary_row["failed_count"]
+                    },
+                    "unique_workflows": summary_row["unique_workflows"]
                 },
-                "unique_workflows": summary_row["unique_workflows"]
+                "file_processing": {
+                    "total_files": summary_row["total_files"],
+                    "completed": summary_row["completed_files"],
+                    "failed": summary_row["failed_files"],
+                    "processing": summary_row["processing_files"],
+                    "total_records_extracted": summary_row["total_records_extracted"],
+                    "total_size_bytes": summary_row["total_file_size_bytes"]
+                }
             }
             
             return {
