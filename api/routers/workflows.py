@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from api.services.cloudera_service import ClouderaService
-from api.databasecore.database import get_supabase
+from api.core.database import get_supabase
 from api.utils.cloudera_utils import (
     get_all_cloudera_env_vars,
     setup_applications,

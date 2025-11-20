@@ -6,8 +6,8 @@ import openai
 from datetime import datetime
 import uuid
 
-from core.config import settings
-from core.database import get_supabase
+from api.core.config import settings
+from api.core.database import get_supabase
 
 
 class AIService:
