@@ -339,7 +339,7 @@ class ClouderaService:
                 if not submission:
                     raise Exception(f"No submission found with trace_id: {trace_id}")
                 
-                # If already completed or failed, return cached status
+                # If already completed or failed, return cached status without polling
                 if submission['status'] in ["completed", "failed"]:
                     return {
                         "success": True,
@@ -351,7 +351,7 @@ class ClouderaService:
                         "message": f"Workflow is {submission['status']}"
                     }
                 
-                # Poll the events API
+                # Only poll if status is not final
                 workflow_url = submission['workflow_url']
                 api_key = get_env_var("CDSW_APIV2_KEY")
                 
@@ -364,20 +364,14 @@ class ClouderaService:
                 
                 async with aiohttp.ClientSession() as http_session:
                     async with http_session.get(url, headers=headers, params=params) as response:
-                        # Update last_polled_at
-                        await conn.execute("""
-                            UPDATE xtracticai.workflow_submissions 
-                            SET last_polled_at = $1
-                            WHERE trace_id = $2
-                        """, datetime.utcnow(), trace_id)
-                        
                         if response.status >= 400:
                             # No response or error means workflow is completed
+                            # Only update DB if status changed
                             await conn.execute("""
                                 UPDATE xtracticai.workflow_submissions 
-                                SET status = $1, completed_at = $2
-                                WHERE trace_id = $3
-                            """, "completed", datetime.utcnow(), trace_id)
+                                SET status = $1, completed_at = $2, last_polled_at = $3
+                                WHERE trace_id = $4 AND status != 'completed'
+                            """, "completed", datetime.utcnow(), datetime.utcnow(), trace_id)
                             
                             return {
                                 "success": True,
@@ -391,20 +385,28 @@ class ClouderaService:
                         # If we get events, workflow is still in progress
                         events = await response.json()
                         
-                        # Update status to in-progress
-                        import json
-                        await conn.execute("""
-                            UPDATE xtracticai.workflow_submissions 
-                            SET status = $1, metadata = $2
-                            WHERE trace_id = $3
-                        """, "in-progress", json.dumps({"latest_events": events}), trace_id)
+                        # Only update if status changed or first poll
+                        if submission['status'] != 'in-progress':
+                            await conn.execute("""
+                                UPDATE xtracticai.workflow_submissions 
+                                SET status = $1, last_polled_at = $2
+                                WHERE trace_id = $3
+                            """, "in-progress", datetime.utcnow(), trace_id)
+                        else:
+                            # Just update last_polled_at without changing status
+                            await conn.execute("""
+                                UPDATE xtracticai.workflow_submissions 
+                                SET last_polled_at = $1
+                                WHERE trace_id = $2
+                            """, datetime.utcnow(), trace_id)
                         
                         return {
                             "success": True,
                             "trace_id": trace_id,
                             "status": "in-progress",
                             "submitted_at": submission['submitted_at'].isoformat(),
-                            "events": events,
+                            "last_polled_at": datetime.utcnow().isoformat(),
+                            "events_count": len(events) if isinstance(events, list) else 0,
                             "message": "Workflow is still in progress"
                         }
             except Exception as e:
