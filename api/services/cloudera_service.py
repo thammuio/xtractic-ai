@@ -3,12 +3,11 @@ Cloudera AI Agent Studio Service
 Manages workflows and agent interactions with Cloudera platform
 """
 import aiohttp
+import asyncpg
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
 import time
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.core.config import settings
 from api.utils.cloudera_utils import (
@@ -19,9 +18,6 @@ from api.utils.cloudera_utils import (
     get_pdf_to_relational_workflow_url,
     get_env_var
 )
-from api.services.stats_service import StatsService
-from api.core.database import AsyncSessionLocal
-from api.core.models import WorkflowSubmission
 
 
 class ClouderaService:
@@ -31,6 +27,8 @@ class ClouderaService:
         self.api_url = settings.CLOUDERA_API_URL
         self.api_key = settings.CLOUDERA_API_KEY
         self.workspace_id = settings.CLOUDERA_WORKSPACE_ID
+        self.db_url = settings.BACKEND_DATABASE_URL
+        self._pool = None
         
         # Use utility functions for deployed workflow configuration
         try:
@@ -50,6 +48,45 @@ class ClouderaService:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+    
+    async def _get_pool(self):
+        """Get or create connection pool"""
+        if self._pool is None:
+            self._pool = await asyncpg.create_pool(self.db_url)
+        return self._pool
+    
+    async def _ensure_submissions_table(self):
+        """Ensure workflow_submissions table exists"""
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("""
+                CREATE SCHEMA IF NOT EXISTS xtracticai;
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS xtracticai.workflow_submissions (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    trace_id VARCHAR NOT NULL UNIQUE,
+                    workflow_url VARCHAR NOT NULL,
+                    uploaded_file_url VARCHAR NOT NULL,
+                    query TEXT,
+                    status VARCHAR DEFAULT 'submitted',
+                    workflow_id VARCHAR,
+                    workflow_name VARCHAR,
+                    execution_id UUID,
+                    file_id UUID,
+                    error_message TEXT,
+                    meta_data JSONB,
+                    submitted_at TIMESTAMP DEFAULT NOW(),
+                    last_polled_at TIMESTAMP,
+                    completed_at TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_workflow_submissions_trace_id 
+                ON xtracticai.workflow_submissions(trace_id);
+                CREATE INDEX IF NOT EXISTS idx_workflow_submissions_status 
+                ON xtracticai.workflow_submissions(status);
+                CREATE INDEX IF NOT EXISTS idx_workflow_submissions_submitted_at 
+                ON xtracticai.workflow_submissions(submitted_at DESC);
+            """)
     
     async def _make_request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Dict:
         """Make HTTP request to Cloudera API"""
@@ -231,11 +268,11 @@ class ClouderaService:
         trace_id = None
         workflow_url = None
         
-        # Initialize database session
-        if AsyncSessionLocal is None:
-            raise Exception("Database not initialized. Cannot track workflow submission.")
+        # Ensure table exists
+        await self._ensure_submissions_table()
+        pool = await self._get_pool()
         
-        async with AsyncSessionLocal() as session:
+        async with pool.acquire() as conn:
             try:
                 # Get the files-to-relational workflow URL
                 workflow_url = get_pdf_to_relational_workflow_url()
@@ -262,19 +299,15 @@ class ClouderaService:
                             error_text = await response.text()
                             
                             # Save failed submission to database
-                            submission = WorkflowSubmission(
-                                trace_id=str(uuid.uuid4()),  # Generate fallback trace_id
-                                workflow_url=workflow_url,
-                                uploaded_file_url=uploaded_file_url,
-                                query=query,
-                                status="failed",
-                                workflow_id="files-to-relational",
-                                workflow_name="PDF to Relational",
-                                error_message=error_text,
-                                submitted_at=datetime.utcnow()
-                            )
-                            session.add(submission)
-                            await session.commit()
+                            submission_id = await conn.fetchval("""
+                                INSERT INTO xtracticai.workflow_submissions 
+                                (trace_id, workflow_url, uploaded_file_url, query, status, 
+                                 workflow_id, workflow_name, error_message, submitted_at)
+                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                                RETURNING id
+                            """, str(uuid.uuid4()), workflow_url, uploaded_file_url, query, 
+                                "failed", "files-to-relational", "PDF to Relational", 
+                                error_text, datetime.utcnow())
                             
                             raise Exception(f"Workflow submission failed: {error_text}")
                         
@@ -285,47 +318,42 @@ class ClouderaService:
                             raise Exception("No trace_id returned from workflow submission")
                         
                         # Save successful submission to database
-                        submission = WorkflowSubmission(
-                            trace_id=trace_id,
-                            workflow_url=workflow_url,
-                            uploaded_file_url=uploaded_file_url,
-                            query=query,
-                            status="submitted",
-                            workflow_id="files-to-relational",
-                            workflow_name="PDF to Relational",
-                            meta_data={"response": result},
-                            submitted_at=datetime.utcnow()
-                        )
-                        session.add(submission)
-                        await session.commit()
-                        await session.refresh(submission)
+                        import json
+                        submission_id = await conn.fetchval("""
+                            INSERT INTO xtracticai.workflow_submissions 
+                            (trace_id, workflow_url, uploaded_file_url, query, status, 
+                             workflow_id, workflow_name, meta_data, submitted_at)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                            RETURNING id
+                        """, trace_id, workflow_url, uploaded_file_url, query, 
+                            "submitted", "files-to-relational", "PDF to Relational", 
+                            json.dumps({"response": result}), datetime.utcnow())
+                        
+                        submission = await conn.fetchrow("""
+                            SELECT * FROM xtracticai.workflow_submissions WHERE id = $1
+                        """, submission_id)
                         
                         return {
                             "success": True,
                             "trace_id": trace_id,
-                            "submission_id": str(submission.id),
+                            "submission_id": str(submission['id']),
                             "workflow_url": workflow_url,
                             "status": "submitted",
-                            "submitted_at": submission.submitted_at.isoformat(),
+                            "submitted_at": submission['submitted_at'].isoformat(),
                             "message": "Workflow submitted successfully to files-to-relational"
                         }
             except Exception as e:
                 # Attempt to save error to database
                 try:
                     if trace_id:
-                        submission = WorkflowSubmission(
-                            trace_id=trace_id,
-                            workflow_url=workflow_url or "unknown",
-                            uploaded_file_url=uploaded_file_url,
-                            query=query,
-                            status="failed",
-                            workflow_id="files-to-relational",
-                            workflow_name="PDF to Relational",
-                            error_message=str(e),
-                            submitted_at=datetime.utcnow()
-                        )
-                        session.add(submission)
-                        await session.commit()
+                        await conn.execute("""
+                            INSERT INTO xtracticai.workflow_submissions 
+                            (trace_id, workflow_url, uploaded_file_url, query, status, 
+                             workflow_id, workflow_name, error_message, submitted_at)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                        """, trace_id, workflow_url or "unknown", uploaded_file_url, query, 
+                            "failed", "files-to-relational", "PDF to Relational", 
+                            str(e), datetime.utcnow())
                 except:
                     pass  # If database save fails, just raise the original error
                 
@@ -333,34 +361,35 @@ class ClouderaService:
     
     async def get_workflow_submission_status(self, trace_id: str) -> Dict:
         """Get status of a submitted workflow by polling the events API"""
-        # Initialize database session
-        if AsyncSessionLocal is None:
-            raise Exception("Database not initialized.")
+        # Ensure table exists
+        await self._ensure_submissions_table()
+        pool = await self._get_pool()
         
-        async with AsyncSessionLocal() as session:
+        async with pool.acquire() as conn:
             try:
                 # Get submission record from database
-                stmt = select(WorkflowSubmission).where(WorkflowSubmission.trace_id == trace_id)
-                result = await session.execute(stmt)
-                submission = result.scalar_one_or_none()
+                submission = await conn.fetchrow("""
+                    SELECT * FROM xtracticai.workflow_submissions 
+                    WHERE trace_id = $1
+                """, trace_id)
                 
                 if not submission:
                     raise Exception(f"No submission found with trace_id: {trace_id}")
                 
                 # If already completed or failed, return cached status
-                if submission.status in ["completed", "failed"]:
+                if submission['status'] in ["completed", "failed"]:
                     return {
                         "success": True,
                         "trace_id": trace_id,
-                        "status": submission.status,
-                        "submitted_at": submission.submitted_at.isoformat(),
-                        "completed_at": submission.completed_at.isoformat() if submission.completed_at else None,
-                        "error_message": submission.error_message,
-                        "message": f"Workflow is {submission.status}"
+                        "status": submission['status'],
+                        "submitted_at": submission['submitted_at'].isoformat(),
+                        "completed_at": submission['completed_at'].isoformat() if submission['completed_at'] else None,
+                        "error_message": submission['error_message'],
+                        "message": f"Workflow is {submission['status']}"
                     }
                 
                 # Poll the events API
-                workflow_url = submission.workflow_url
+                workflow_url = submission['workflow_url']
                 api_key = get_env_var("CDSW_APIV2_KEY")
                 
                 url = f"{workflow_url}/api/workflow/events"
@@ -373,32 +402,25 @@ class ClouderaService:
                 async with aiohttp.ClientSession() as http_session:
                     async with http_session.get(url, headers=headers, params=params) as response:
                         # Update last_polled_at
-                        stmt = (
-                            update(WorkflowSubmission)
-                            .where(WorkflowSubmission.trace_id == trace_id)
-                            .values(last_polled_at=datetime.utcnow())
-                        )
-                        await session.execute(stmt)
-                        await session.commit()
+                        await conn.execute("""
+                            UPDATE xtracticai.workflow_submissions 
+                            SET last_polled_at = $1
+                            WHERE trace_id = $2
+                        """, datetime.utcnow(), trace_id)
                         
                         if response.status >= 400:
                             # No response or error means workflow is completed
-                            stmt = (
-                                update(WorkflowSubmission)
-                                .where(WorkflowSubmission.trace_id == trace_id)
-                                .values(
-                                    status="completed",
-                                    completed_at=datetime.utcnow()
-                                )
-                            )
-                            await session.execute(stmt)
-                            await session.commit()
+                            await conn.execute("""
+                                UPDATE xtracticai.workflow_submissions 
+                                SET status = $1, completed_at = $2
+                                WHERE trace_id = $3
+                            """, "completed", datetime.utcnow(), trace_id)
                             
                             return {
                                 "success": True,
                                 "trace_id": trace_id,
                                 "status": "completed",
-                                "submitted_at": submission.submitted_at.isoformat(),
+                                "submitted_at": submission['submitted_at'].isoformat(),
                                 "completed_at": datetime.utcnow().isoformat(),
                                 "message": "Workflow completed successfully"
                             }
@@ -407,22 +429,18 @@ class ClouderaService:
                         events = await response.json()
                         
                         # Update status to in-progress
-                        stmt = (
-                            update(WorkflowSubmission)
-                            .where(WorkflowSubmission.trace_id == trace_id)
-                            .values(
-                                status="in-progress",
-                                meta_data={"latest_events": events}
-                            )
-                        )
-                        await session.execute(stmt)
-                        await session.commit()
+                        import json
+                        await conn.execute("""
+                            UPDATE xtracticai.workflow_submissions 
+                            SET status = $1, meta_data = $2
+                            WHERE trace_id = $3
+                        """, "in-progress", json.dumps({"latest_events": events}), trace_id)
                         
                         return {
                             "success": True,
                             "trace_id": trace_id,
                             "status": "in-progress",
-                            "submitted_at": submission.submitted_at.isoformat(),
+                            "submitted_at": submission['submitted_at'].isoformat(),
                             "events": events,
                             "message": "Workflow is still in progress"
                         }
