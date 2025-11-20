@@ -7,7 +7,7 @@ from datetime import datetime
 import asyncio
 
 from api.core.database import get_supabase
-from api.core.config import settings
+from api.api.core.config import settings
 
 
 class ETLService:

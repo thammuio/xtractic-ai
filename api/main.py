@@ -10,7 +10,7 @@ import uvicorn
 import os
 
 from api.routers import workflows, datasets, ai, etl, mcp, rag
-from core.config import settings
+from api.core.config import settings
 from core.database import init_db
 
 @asynccontextmanager

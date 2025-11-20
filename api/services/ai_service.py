@@ -6,7 +6,7 @@ import openai
 from datetime import datetime
 import uuid
 
-from api.core.config import settings
+from api.api.core.config import settings
 from api.core.database import get_supabase
 
 

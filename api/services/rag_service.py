@@ -8,7 +8,7 @@ import uuid
 import PyPDF2
 import io
 
-from api.core.config import settings
+from api.api.core.config import settings
 from api.core.database import get_rag_session
 
 
