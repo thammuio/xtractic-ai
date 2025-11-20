@@ -29,7 +29,7 @@ A powerful agent tool for inserting data into PostgreSQL databases. This tool in
 **For your database:**
 ```json
 {
-  "connection_string": "postgresql://postgres:xtracticai@db.ookoiajqcpejeqyqvhjj.supabase.co:5432/postgres",
+  "connection_string": "postgresql://postgres:dbpass@dbname:5432/postgres",
   "default_schema": "public",
   "force_ipv4": true,
   "connection_timeout": 30
@@ -256,7 +256,7 @@ You can test the tool from command line:
 
 ```bash
 python tool.py \
-  --user-params '{"connection_string": "postgresql://postgres:xtracticai@db.ookoiajqcpejeqyqvhjj.supabase.co:5432/postgres", "force_ipv4": true}' \
+  --user-params '{"connection_string": "postgresql://postgres:password@dbname:5432/postgres", "force_ipv4": true}' \
   --tool-params '{"table_name": "test_table", "data": [{"id": 1, "name": "Test"}], "create_if_not_exists": true, "primary_key": ["id"]}'
 ```
 
