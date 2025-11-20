@@ -231,85 +231,45 @@ class WorkflowService:
             }
     
     async def get_workflow_details_summary(self) -> Dict[str, Any]:
-        """Get workflow summary for table display
+        """Get workflow and file-level details for table display
         
-        Returns aggregated data per workflow including:
+        Returns individual rows for each workflow + file combination:
         - Workflow ID and name
-        - Type (derived from file types processed)
-        - Status (active/paused based on recent activity)
-        - File count
-        - Success rate
-        - Last run timestamp
-        - Total records extracted
+        - File name and type
+        - Processing status
+        - Records extracted
+        - Last activity timestamp
+        - Success/failure status
         
         Returns:
-            Dictionary with list of workflow summaries and count
+            Dictionary with list of workflow-file details and count
         """
         pool = await self._get_pool()
         async with pool.acquire() as conn:
-            # Query to aggregate workflow data from both tables
+            # Query to get all workflow-file combinations from both tables
             query = """
-                WITH workflow_files AS (
-                    -- Get workflow info from workflow_submissions with LEFT JOIN to file_processing_stats
-                    SELECT 
-                        ws.workflow_id as workflow_id,
-                        ws.workflow_name as workflow_name,
-                        fps.file_type,
-                        COALESCE(fps.file_name, ws.file_name, REGEXP_REPLACE(ws.uploaded_file_url, '.*/', '')) as file_name,
-                        fps.processing_status,
-                        fps.records_extracted,
-                        fps.completed_at,
-                        ws.status as submission_status,
-                        ws.submitted_at,
-                        COALESCE(fps.completed_at, ws.completed_at, fps.uploaded_at, ws.submitted_at) as last_activity
-                    FROM xtracticai.workflow_submissions ws
-                    LEFT JOIN xtracticai.file_processing_stats fps 
-                        ON fps.file_name = COALESCE(ws.file_name, REGEXP_REPLACE(ws.uploaded_file_url, '.*/', ''))
-                    WHERE ws.workflow_id IS NOT NULL
-                ),
-                workflow_summary AS (
-                    SELECT 
-                        workflow_id,
-                        workflow_name,
-                        -- Determine primary file type (most common)
-                        MODE() WITHIN GROUP (ORDER BY file_type) as primary_type,
-                        -- Count unique files
-                        COUNT(DISTINCT file_name) as file_count,
-                        -- Calculate success rate
-                        ROUND(
-                            100.0 * COUNT(*) FILTER (WHERE processing_status = 'completed') / 
-                            NULLIF(COUNT(*) FILTER (WHERE processing_status IS NOT NULL), 0),
-                            1
-                        ) as success_rate,
-                        -- Last run time
-                        MAX(last_activity) as last_run,
-                        -- Status (active if run in last 7 days, otherwise paused)
-                        CASE 
-                            WHEN MAX(last_activity) > NOW() - INTERVAL '7 days' THEN 'ACTIVE'
-                            ELSE 'PAUSED'
-                        END as status,
-                        -- Total records
-                        COALESCE(SUM(records_extracted), 0) as total_records_extracted,
-                        -- Failed count
-                        COUNT(*) FILTER (WHERE processing_status = 'failed') as failed_count,
-                        -- Completed count
-                        COUNT(*) FILTER (WHERE processing_status = 'completed') as completed_count
-                    FROM workflow_files
-                    GROUP BY workflow_id, workflow_name
-                )
                 SELECT 
-                    workflow_id,
-                    workflow_name,
-                    COALESCE(UPPER(primary_type), 'UNKNOWN') as type,
-                    status,
-                    last_run,
-                    COALESCE(success_rate, 0) as success_rate,
-                    file_count,
-                    total_records_extracted,
-                    completed_count,
-                    failed_count
-                FROM workflow_summary
-                ORDER BY last_run DESC NULLS LAST
+                    ws.workflow_id,
+                    ws.workflow_name,
+                    COALESCE(fps.file_name, ws.file_name, REGEXP_REPLACE(ws.uploaded_file_url, '.*/', '')) as file_name,
+                    COALESCE(UPPER(fps.file_type), 'UNKNOWN') as file_type,
+                    COALESCE(fps.processing_status, ws.status, 'pending') as status,
+                    fps.records_extracted,
+                    COALESCE(fps.completed_at, ws.completed_at, fps.uploaded_at, ws.submitted_at) as last_activity,
+                    ws.submitted_at,
+                    fps.file_size_bytes,
+                    fps.processing_duration_ms,
+                    CASE 
+                        WHEN fps.processing_status = 'completed' THEN true
+                        WHEN fps.processing_status = 'failed' OR ws.status = 'failed' THEN false
+                        ELSE null
+                    END as is_successful,
+                    COALESCE(fps.error_message, ws.error_message) as error_message
+                FROM xtracticai.workflow_submissions ws
+                LEFT JOIN xtracticai.file_processing_stats fps 
+                    ON fps.file_name = COALESCE(ws.file_name, REGEXP_REPLACE(ws.uploaded_file_url, '.*/', ''))
+                WHERE ws.workflow_id IS NOT NULL
+                ORDER BY last_activity DESC NULLS LAST
             """
             
             rows = await conn.fetch(query)
@@ -319,15 +279,16 @@ class WorkflowService:
                 workflows.append({
                     "workflow_id": row["workflow_id"],
                     "workflow_name": row["workflow_name"] or "Unnamed Workflow",
-                    "type": row["type"],
+                    "file_name": row["file_name"],
+                    "file_type": row["file_type"],
                     "status": row["status"],
-                    "last_run": row["last_run"].isoformat() if row["last_run"] else None,
-                    "next_run": None,  # Can be enhanced later with scheduling info
-                    "success_rate": float(row["success_rate"]) if row["success_rate"] else 0.0,
-                    "file_count": row["file_count"],
-                    "total_records_extracted": row["total_records_extracted"],
-                    "completed_count": row["completed_count"],
-                    "failed_count": row["failed_count"]
+                    "records_extracted": row["records_extracted"] or 0,
+                    "last_activity": row["last_activity"].isoformat() if row["last_activity"] else None,
+                    "submitted_at": row["submitted_at"].isoformat() if row["submitted_at"] else None,
+                    "file_size_bytes": row["file_size_bytes"],
+                    "processing_duration_ms": float(row["processing_duration_ms"]) if row["processing_duration_ms"] else None,
+                    "is_successful": row["is_successful"],
+                    "error_message": row["error_message"]
                 })
             
             return {
