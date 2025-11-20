@@ -457,6 +457,153 @@ class StatsService:
             """, limit)
             return [dict(row) for row in rows]
     
+    async def get_workflow_submission_stats(
+        self,
+        limit: int = 50,
+        status: str = None
+    ) -> Dict[str, Any]:
+        """Get workflow submission statistics correlated with file processing stats
+        
+        Matches workflow_submissions with file_processing_stats by extracting filename
+        from uploaded_file_url and matching with file_name.
+        
+        Args:
+            limit: Maximum number of submissions to return
+            status: Optional status filter (submitted, in-progress, completed, failed)
+            
+        Returns:
+            Dictionary containing submissions list, count, and summary statistics
+        """
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            # Build query with optional status filter
+            status_filter = "WHERE ws.status = $2" if status else ""
+            status_params = [limit, status] if status else [limit]
+            
+            # Query that joins workflow_submissions with file_processing_stats
+            # by extracting filename from uploaded_file_url
+            query = f"""
+                WITH extracted_filenames AS (
+                    SELECT 
+                        ws.*,
+                        -- Extract filename from URL (after last /)
+                        REGEXP_REPLACE(ws.uploaded_file_url, '.*/', '') as extracted_filename
+                    FROM xtracticai.workflow_submissions ws
+                    {status_filter}
+                )
+                SELECT 
+                    ef.id,
+                    ef.trace_id,
+                    ef.workflow_url,
+                    ef.uploaded_file_url,
+                    ef.query,
+                    ef.status,
+                    ef.workflow_id,
+                    ef.workflow_name,
+                    ef.execution_id,
+                    ef.file_id,
+                    ef.error_message,
+                    ef.metadata,
+                    ef.submitted_at,
+                    ef.last_polled_at,
+                    ef.completed_at,
+                    ef.extracted_filename,
+                    -- File processing details
+                    fps.id as file_processing_id,
+                    fps.file_name,
+                    fps.file_type,
+                    fps.file_size_bytes,
+                    fps.processing_status,
+                    fps.records_extracted,
+                    fps.processing_duration_ms,
+                    fps.uploaded_at as file_uploaded_at,
+                    fps.completed_at as file_completed_at,
+                    fps.error_message as file_error_message
+                FROM extracted_filenames ef
+                LEFT JOIN xtracticai.file_processing_stats fps 
+                    ON fps.file_name = ef.extracted_filename
+                ORDER BY ef.submitted_at DESC
+                LIMIT $1
+            """
+            
+            rows = await conn.fetch(query, *status_params)
+            
+            # Convert to list of dicts with nested structure
+            submissions = []
+            for row in rows:
+                submission = {
+                    "id": str(row["id"]),
+                    "trace_id": row["trace_id"],
+                    "workflow_url": row["workflow_url"],
+                    "uploaded_file_url": row["uploaded_file_url"],
+                    "query": row["query"],
+                    "status": row["status"],
+                    "workflow_id": row["workflow_id"],
+                    "workflow_name": row["workflow_name"],
+                    "execution_id": str(row["execution_id"]) if row["execution_id"] else None,
+                    "file_id": str(row["file_id"]) if row["file_id"] else None,
+                    "error_message": row["error_message"],
+                    "metadata": row["metadata"],
+                    "submitted_at": row["submitted_at"].isoformat() if row["submitted_at"] else None,
+                    "last_polled_at": row["last_polled_at"].isoformat() if row["last_polled_at"] else None,
+                    "completed_at": row["completed_at"].isoformat() if row["completed_at"] else None,
+                    "extracted_filename": row["extracted_filename"],
+                }
+                
+                # Add file processing details if matched
+                if row["file_processing_id"]:
+                    submission["file_processing"] = {
+                        "id": str(row["file_processing_id"]),
+                        "file_name": row["file_name"],
+                        "file_type": row["file_type"],
+                        "file_size_bytes": row["file_size_bytes"],
+                        "processing_status": row["processing_status"],
+                        "records_extracted": row["records_extracted"],
+                        "processing_duration_ms": float(row["processing_duration_ms"]) if row["processing_duration_ms"] else None,
+                        "uploaded_at": row["file_uploaded_at"].isoformat() if row["file_uploaded_at"] else None,
+                        "completed_at": row["file_completed_at"].isoformat() if row["file_completed_at"] else None,
+                        "error_message": row["file_error_message"]
+                    }
+                else:
+                    submission["file_processing"] = None
+                
+                submissions.append(submission)
+            
+            # Get summary statistics
+            summary_query = """
+                SELECT 
+                    COUNT(*) as total_submissions,
+                    COUNT(*) FILTER (WHERE status = 'submitted') as submitted_count,
+                    COUNT(*) FILTER (WHERE status = 'in-progress') as in_progress_count,
+                    COUNT(*) FILTER (WHERE status = 'completed') as completed_count,
+                    COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
+                    COUNT(DISTINCT workflow_id) as unique_workflows
+                FROM xtracticai.workflow_submissions
+            """
+            
+            if status:
+                summary_query += " WHERE status = $1"
+                summary_row = await conn.fetchrow(summary_query, status)
+            else:
+                summary_row = await conn.fetchrow(summary_query)
+            
+            summary = {
+                "total_submissions": summary_row["total_submissions"],
+                "by_status": {
+                    "submitted": summary_row["submitted_count"],
+                    "in_progress": summary_row["in_progress_count"],
+                    "completed": summary_row["completed_count"],
+                    "failed": summary_row["failed_count"]
+                },
+                "unique_workflows": summary_row["unique_workflows"]
+            }
+            
+            return {
+                "submissions": submissions,
+                "count": len(submissions),
+                "summary": summary
+            }
+    
     async def close(self):
         """Close connection pool"""
         if self._pool:

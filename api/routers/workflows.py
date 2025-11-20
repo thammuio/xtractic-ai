@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from api.services.cloudera_service import ClouderaService
+from api.services.stats_service import StatsService
 from api.core.database import get_supabase
 from api.utils.cloudera_utils import (
     get_all_cloudera_env_vars,
@@ -74,14 +75,32 @@ async def get_workflows(
 
 
 @router.get("/stats")
-async def get_workflow_stats():
-    """Get workflow statistics"""
+async def get_workflow_stats(
+    limit: int = 50,
+    status: Optional[str] = None
+):
+    """Get workflow submission statistics with file processing details
+    
+    Correlates workflow_submissions with file_processing_stats by matching:
+    - file_name from file_processing_stats
+    - extracted filename from uploaded_file_url in workflow_submissions
+    """
     try:
-        cloudera_service = ClouderaService()
-        stats = await cloudera_service.get_workflow_stats()
+        stats_service = StatsService()
+        await stats_service.init_schema()
+        
+        stats = await stats_service.get_workflow_submission_stats(
+            limit=limit,
+            status=status
+        )
+        
+        await stats_service.close()
+        
         return {
             "success": True,
-            "data": stats
+            "data": stats["submissions"],
+            "count": stats["count"],
+            "summary": stats["summary"]
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
