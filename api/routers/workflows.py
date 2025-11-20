@@ -6,7 +6,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from api.services.cloudera_service import ClouderaService
-from api.services.stats_service import StatsService
+from api.services.workflow_service import WorkflowService
 
 router = APIRouter()
 
@@ -16,8 +16,8 @@ class WorkflowSubmitRequest(BaseModel):
     query: str
 
 
-@router.get("/details")
-async def get_workflows_details(
+@router.get("/stats")
+async def get_workflows_stats(
     limit: int = 50,
     status: Optional[str] = None
 ):
@@ -31,20 +31,48 @@ async def get_workflows_details(
     - extracted filename from uploaded_file_url in workflow_submissions
     """
     try:
-        stats_service = StatsService()
+        workflow_service = WorkflowService()
         
-        stats = await stats_service.get_workflow_submission_stats(
+        stats = await workflow_service.get_workflow_submission_stats(
             limit=limit,
             status=status
         )
         
-        await stats_service.close()
+        await workflow_service.close()
         
         return {
             "success": True,
             "data": stats["submissions"],
             "count": stats["count"],
             "summary": stats["summary"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/details")
+async def get_workflow_details():
+    """Get workflow summary details for table display
+    
+    Returns aggregated workflow information including:
+    - Workflow name and ID
+    - File count processed
+    - Success rate
+    - Last run timestamp
+    - Current status
+    - Total records extracted
+    """
+    try:
+        workflow_service = WorkflowService()
+        
+        details = await workflow_service.get_workflow_details_summary()
+        
+        await workflow_service.close()
+        
+        return {
+            "success": True,
+            "data": details["workflows"],
+            "count": details["count"]
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
