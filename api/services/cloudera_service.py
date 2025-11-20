@@ -55,39 +55,6 @@ class ClouderaService:
             self._pool = await asyncpg.create_pool(self.db_url)
         return self._pool
     
-    async def _ensure_submissions_table(self):
-        """Ensure workflow_submissions table exists"""
-        pool = await self._get_pool()
-        async with pool.acquire() as conn:
-            await conn.execute("""
-                CREATE SCHEMA IF NOT EXISTS xtracticai;
-            """)
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS xtracticai.workflow_submissions (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    trace_id VARCHAR NOT NULL UNIQUE,
-                    workflow_url VARCHAR NOT NULL,
-                    uploaded_file_url VARCHAR NOT NULL,
-                    query TEXT,
-                    status VARCHAR DEFAULT 'submitted',
-                    workflow_id VARCHAR,
-                    workflow_name VARCHAR,
-                    execution_id UUID,
-                    file_id UUID,
-                    error_message TEXT,
-                    meta_data JSONB,
-                    submitted_at TIMESTAMP DEFAULT NOW(),
-                    last_polled_at TIMESTAMP,
-                    completed_at TIMESTAMP
-                );
-                CREATE INDEX IF NOT EXISTS idx_workflow_submissions_trace_id 
-                ON xtracticai.workflow_submissions(trace_id);
-                CREATE INDEX IF NOT EXISTS idx_workflow_submissions_status 
-                ON xtracticai.workflow_submissions(status);
-                CREATE INDEX IF NOT EXISTS idx_workflow_submissions_submitted_at 
-                ON xtracticai.workflow_submissions(submitted_at DESC);
-            """)
-    
     async def _make_request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Dict:
         """Make HTTP request to Cloudera API"""
         url = f"{self.api_url}{endpoint}"
@@ -268,8 +235,6 @@ class ClouderaService:
         trace_id = None
         workflow_url = None
         
-        # Ensure table exists
-        await self._ensure_submissions_table()
         pool = await self._get_pool()
         
         async with pool.acquire() as conn:
@@ -322,7 +287,7 @@ class ClouderaService:
                         submission_id = await conn.fetchval("""
                             INSERT INTO xtracticai.workflow_submissions 
                             (trace_id, workflow_url, uploaded_file_url, query, status, 
-                             workflow_id, workflow_name, meta_data, submitted_at)
+                             workflow_id, workflow_name, metadata, submitted_at)
                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                             RETURNING id
                         """, trace_id, workflow_url, uploaded_file_url, query, 
@@ -361,8 +326,6 @@ class ClouderaService:
     
     async def get_workflow_submission_status(self, trace_id: str) -> Dict:
         """Get status of a submitted workflow by polling the events API"""
-        # Ensure table exists
-        await self._ensure_submissions_table()
         pool = await self._get_pool()
         
         async with pool.acquire() as conn:
@@ -432,7 +395,7 @@ class ClouderaService:
                         import json
                         await conn.execute("""
                             UPDATE xtracticai.workflow_submissions 
-                            SET status = $1, meta_data = $2
+                            SET status = $1, metadata = $2
                             WHERE trace_id = $3
                         """, "in-progress", json.dumps({"latest_events": events}), trace_id)
                         

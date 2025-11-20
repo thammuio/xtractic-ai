@@ -115,6 +115,32 @@ class StatsService:
                 CREATE INDEX IF NOT EXISTS idx_workflow_stats_status ON xtracticai.workflow_execution_stats(status);
                 CREATE INDEX IF NOT EXISTS idx_workflow_stats_started ON xtracticai.workflow_execution_stats(started_at DESC);
             """)
+            
+            # Workflow submissions table (for tracking trace_id based submissions)
+            await conn.execute("""
+                DROP TABLE IF EXISTS xtracticai.workflow_submissions;
+                
+                CREATE TABLE xtracticai.workflow_submissions (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    trace_id VARCHAR NOT NULL UNIQUE,
+                    workflow_url VARCHAR NOT NULL,
+                    uploaded_file_url VARCHAR NOT NULL,
+                    query TEXT,
+                    status VARCHAR DEFAULT 'submitted',
+                    workflow_id VARCHAR,
+                    workflow_name VARCHAR,
+                    execution_id UUID,
+                    file_id UUID,
+                    error_message TEXT,
+                    metadata JSONB,
+                    submitted_at TIMESTAMP DEFAULT NOW(),
+                    last_polled_at TIMESTAMP,
+                    completed_at TIMESTAMP
+                );
+                CREATE INDEX idx_workflow_submissions_trace_id ON xtracticai.workflow_submissions(trace_id);
+                CREATE INDEX idx_workflow_submissions_status ON xtracticai.workflow_submissions(status);
+                CREATE INDEX idx_workflow_submissions_submitted_at ON xtracticai.workflow_submissions(submitted_at DESC);
+            """)
     
     async def track_agent(self, agent_name: str, agent_type: str, status: str, deployment_url: str = None) -> str:
         """Track or update agent deployment"""
