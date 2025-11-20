@@ -7,6 +7,8 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
 import time
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.core.config import settings
 from api.utils.cloudera_utils import (
@@ -18,6 +20,8 @@ from api.utils.cloudera_utils import (
     get_env_var
 )
 from api.services.stats_service import StatsService
+from api.core.database import AsyncSessionLocal
+from api.core.models import WorkflowSubmission
 
 
 class ClouderaService:
@@ -223,113 +227,204 @@ class ClouderaService:
     
     async def submit_workflow(self, uploaded_file_url: str, query: str) -> Dict:
         """Submit workflow to files-to-relational Agent Studio application"""
-        stats_service = StatsService()
         start_time = time.time()
-        execution_id = None
-        file_id = None
+        trace_id = None
+        workflow_url = None
         
-        try:
-            await stats_service.init_schema()
-            
-            # Track agent
-            await stats_service.track_agent(
-                agent_name="files-to-relational",
-                agent_type="workflow",
-                status="running"
-            )
-            
-            # Track file upload
-            file_name = uploaded_file_url.split('/')[-1] if '/' in uploaded_file_url else uploaded_file_url
-            file_id = await stats_service.track_file_upload(
-                file_name=file_name,
-                file_type="pdf",
-                file_size_bytes=0,
-                workflow_id="files-to-relational",
-                workflow_name="PDF to Relational"
-            )
-            
-            # Track workflow execution
-            execution_id = await stats_service.track_workflow_execution(
-                workflow_id="files-to-relational",
-                workflow_name="PDF to Relational",
-                execution_type="manual",
-                agents_used=["files-to-relational"],
-                tools_used=["pdf_processor"]
-            )
-            
-            # Get the files-to-relational workflow URL
-            workflow_url = get_pdf_to_relational_workflow_url()
-            if not workflow_url:
-                raise Exception("files-to-relational workflow application not found in Agent Studio")
-            
-            api_key = get_env_var("CDSW_APIV2_KEY")
-            
-            url = f"{workflow_url}/api/workflow/kickoff"
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}"
-            }
-            data = {
-                "inputs": {
-                    "uploaded_file_url": uploaded_file_url,
-                    "query": query
+        # Initialize database session
+        if AsyncSessionLocal is None:
+            raise Exception("Database not initialized. Cannot track workflow submission.")
+        
+        async with AsyncSessionLocal() as session:
+            try:
+                # Get the files-to-relational workflow URL
+                workflow_url = get_pdf_to_relational_workflow_url()
+                if not workflow_url:
+                    raise Exception("files-to-relational workflow application not found in Agent Studio")
+                
+                api_key = get_env_var("CDSW_APIV2_KEY")
+                
+                url = f"{workflow_url}/api/workflow/kickoff"
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}"
                 }
-            }
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, headers=headers, json=data) as response:
-                    if response.status >= 400:
-                        error_text = await response.text()
-                        duration_ms = (time.time() - start_time) * 1000
-                        
-                        # Update stats for failure
-                        await stats_service.update_agent_execution("files-to-relational", False)
-                        if file_id:
-                            await stats_service.update_file_processing(
-                                file_id, "failed", error_message=error_text, duration_ms=duration_ms
+                data = {
+                    "inputs": {
+                        "uploaded_file_url": uploaded_file_url,
+                        "query": query
+                    }
+                }
+                
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.post(url, headers=headers, json=data) as response:
+                        if response.status >= 400:
+                            error_text = await response.text()
+                            
+                            # Save failed submission to database
+                            submission = WorkflowSubmission(
+                                trace_id=str(uuid.uuid4()),  # Generate fallback trace_id
+                                workflow_url=workflow_url,
+                                uploaded_file_url=uploaded_file_url,
+                                query=query,
+                                status="failed",
+                                workflow_id="files-to-relational",
+                                workflow_name="PDF to Relational",
+                                error_message=error_text,
+                                submitted_at=datetime.utcnow()
                             )
-                        if execution_id:
-                            await stats_service.update_workflow_execution(
-                                execution_id, "failed", error_message=error_text, duration_ms=duration_ms
-                            )
+                            session.add(submission)
+                            await session.commit()
+                            
+                            raise Exception(f"Workflow submission failed: {error_text}")
                         
-                        raise Exception(f"Workflow submission failed: {error_text}")
-                    
-                    result = await response.json()
-                    duration_ms = (time.time() - start_time) * 1000
-                    
-                    # Update stats for success
-                    await stats_service.update_agent_execution("files-to-relational", True)
-                    if file_id:
-                        await stats_service.update_file_processing(
-                            file_id, "completed", duration_ms=duration_ms
+                        result = await response.json()
+                        trace_id = result.get("trace_id")
+                        
+                        if not trace_id:
+                            raise Exception("No trace_id returned from workflow submission")
+                        
+                        # Save successful submission to database
+                        submission = WorkflowSubmission(
+                            trace_id=trace_id,
+                            workflow_url=workflow_url,
+                            uploaded_file_url=uploaded_file_url,
+                            query=query,
+                            status="submitted",
+                            workflow_id="files-to-relational",
+                            workflow_name="PDF to Relational",
+                            metadata={"response": result},
+                            submitted_at=datetime.utcnow()
                         )
-                    if execution_id:
-                        await stats_service.update_workflow_execution(
-                            execution_id,
-                            "success",
-                            input_files_count=1,
-                            duration_ms=duration_ms,
-                            metadata={"workflow_url": workflow_url}
+                        session.add(submission)
+                        await session.commit()
+                        await session.refresh(submission)
+                        
+                        return {
+                            "success": True,
+                            "trace_id": trace_id,
+                            "submission_id": str(submission.id),
+                            "workflow_url": workflow_url,
+                            "status": "submitted",
+                            "submitted_at": submission.submitted_at.isoformat(),
+                            "message": "Workflow submitted successfully to files-to-relational"
+                        }
+            except Exception as e:
+                # Attempt to save error to database
+                try:
+                    if trace_id:
+                        submission = WorkflowSubmission(
+                            trace_id=trace_id,
+                            workflow_url=workflow_url or "unknown",
+                            uploaded_file_url=uploaded_file_url,
+                            query=query,
+                            status="failed",
+                            workflow_id="files-to-relational",
+                            workflow_name="PDF to Relational",
+                            error_message=str(e),
+                            submitted_at=datetime.utcnow()
                         )
-                    
+                        session.add(submission)
+                        await session.commit()
+                except:
+                    pass  # If database save fails, just raise the original error
+                
+                raise Exception(f"Error submitting workflow: {str(e)}")
+    
+    async def get_workflow_submission_status(self, trace_id: str) -> Dict:
+        """Get status of a submitted workflow by polling the events API"""
+        # Initialize database session
+        if AsyncSessionLocal is None:
+            raise Exception("Database not initialized.")
+        
+        async with AsyncSessionLocal() as session:
+            try:
+                # Get submission record from database
+                stmt = select(WorkflowSubmission).where(WorkflowSubmission.trace_id == trace_id)
+                result = await session.execute(stmt)
+                submission = result.scalar_one_or_none()
+                
+                if not submission:
+                    raise Exception(f"No submission found with trace_id: {trace_id}")
+                
+                # If already completed or failed, return cached status
+                if submission.status in ["completed", "failed"]:
                     return {
                         "success": True,
-                        "data": result,
-                        "workflow_url": workflow_url,
-                        "execution_id": execution_id,
-                        "file_id": file_id,
-                        "message": "Workflow submitted successfully to files-to-relational"
+                        "trace_id": trace_id,
+                        "status": submission.status,
+                        "submitted_at": submission.submitted_at.isoformat(),
+                        "completed_at": submission.completed_at.isoformat() if submission.completed_at else None,
+                        "error_message": submission.error_message,
+                        "message": f"Workflow is {submission.status}"
                     }
-        except Exception as e:
-            duration_ms = (time.time() - start_time) * 1000
-            
-            # Update stats for error
-            if execution_id:
-                await stats_service.update_workflow_execution(
-                    execution_id, "failed", error_message=str(e), duration_ms=duration_ms
-                )
-            
-            raise Exception(f"Error submitting workflow: {str(e)}")
-        finally:
-            await stats_service.close()
+                
+                # Poll the events API
+                workflow_url = submission.workflow_url
+                api_key = get_env_var("CDSW_APIV2_KEY")
+                
+                url = f"{workflow_url}/api/workflow/events"
+                params = {"trace_id": trace_id}
+                headers = {
+                    "Accept": "application/json",
+                    "Authorization": f"Bearer {api_key}"
+                }
+                
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.get(url, headers=headers, params=params) as response:
+                        # Update last_polled_at
+                        stmt = (
+                            update(WorkflowSubmission)
+                            .where(WorkflowSubmission.trace_id == trace_id)
+                            .values(last_polled_at=datetime.utcnow())
+                        )
+                        await session.execute(stmt)
+                        await session.commit()
+                        
+                        if response.status >= 400:
+                            # No response or error means workflow is completed
+                            stmt = (
+                                update(WorkflowSubmission)
+                                .where(WorkflowSubmission.trace_id == trace_id)
+                                .values(
+                                    status="completed",
+                                    completed_at=datetime.utcnow()
+                                )
+                            )
+                            await session.execute(stmt)
+                            await session.commit()
+                            
+                            return {
+                                "success": True,
+                                "trace_id": trace_id,
+                                "status": "completed",
+                                "submitted_at": submission.submitted_at.isoformat(),
+                                "completed_at": datetime.utcnow().isoformat(),
+                                "message": "Workflow completed successfully"
+                            }
+                        
+                        # If we get events, workflow is still in progress
+                        events = await response.json()
+                        
+                        # Update status to in-progress
+                        stmt = (
+                            update(WorkflowSubmission)
+                            .where(WorkflowSubmission.trace_id == trace_id)
+                            .values(
+                                status="in-progress",
+                                metadata={"latest_events": events}
+                            )
+                        )
+                        await session.execute(stmt)
+                        await session.commit()
+                        
+                        return {
+                            "success": True,
+                            "trace_id": trace_id,
+                            "status": "in-progress",
+                            "submitted_at": submission.submitted_at.isoformat(),
+                            "events": events,
+                            "message": "Workflow is still in progress"
+                        }
+            except Exception as e:
+                raise Exception(f"Error checking workflow status: {str(e)}")

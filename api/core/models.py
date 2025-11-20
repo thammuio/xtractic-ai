@@ -128,3 +128,24 @@ class WorkflowExecutionStats(Base):
     metadata = Column(JSON)
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
+
+
+class WorkflowSubmission(Base):
+    __tablename__ = "workflow_submissions"
+    __table_args__ = {'schema': 'xtracticai'}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trace_id = Column(String, nullable=False, unique=True, index=True)
+    workflow_url = Column(String, nullable=False)
+    uploaded_file_url = Column(String, nullable=False)
+    query = Column(Text)
+    status = Column(String, default="submitted")  # submitted, in-progress, completed, failed
+    workflow_id = Column(String)
+    workflow_name = Column(String)
+    execution_id = Column(UUID(as_uuid=True))
+    file_id = Column(UUID(as_uuid=True))
+    error_message = Column(Text)
+    metadata = Column(JSON)
+    submitted_at = Column(DateTime, default=datetime.utcnow)
+    last_polled_at = Column(DateTime)
+    completed_at = Column(DateTime)

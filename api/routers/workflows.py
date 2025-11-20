@@ -357,6 +357,22 @@ async def submit_workflow(request: WorkflowSubmitRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{trace_id}/status")
+async def get_workflow_status(trace_id: str):
+    """Get status of a submitted workflow by trace_id
+    
+    Polls the workflow events API every 5 seconds to check status:
+    - If events are returned: workflow is in-progress
+    - If no response/error: workflow is completed
+    """
+    try:
+        cloudera_service = ClouderaService()
+        status = await cloudera_service.get_workflow_submission_status(trace_id)
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/deployed/kickoff")
 async def kickoff_deployed_workflow(request: WorkflowKickoffRequest):
     """Start a deployed workflow execution with PDF URL"""
