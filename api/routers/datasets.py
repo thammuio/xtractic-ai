@@ -8,8 +8,8 @@ from pydantic import BaseModel
 import io
 import csv
 
-from services.dataset_service import DatasetService
-from core.database import get_supabase
+from api.services.dataset_service import DatasetService
+from api.core.database import get_supabase
 
 router = APIRouter()
 

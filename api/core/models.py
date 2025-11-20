@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import uuid
 
-from core.database import Base
+from api.core.database import Base
 
 
 class Workflow(Base):

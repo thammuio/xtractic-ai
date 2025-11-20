@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 
-from services.etl_service import ETLService
+from api.services.etl_service import ETLService
 
 router = APIRouter()
 

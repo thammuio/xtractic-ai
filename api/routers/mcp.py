@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 
-from services.mcp_service import MCPService
+from api.services.mcp_service import MCPService
 
 router = APIRouter()
 

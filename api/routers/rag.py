@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
-from services.rag_service import RAGService
+from api.services.rag_service import RAGService
 
 router = APIRouter()
 

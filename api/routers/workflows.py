@@ -6,9 +6,9 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime
 
-from services.cloudera_service import ClouderaService
-from core.database import get_supabase
-from utils.cloudera_utils import (
+from api.services.cloudera_service import ClouderaService
+from api.databasecore.database import get_supabase
+from api.utils.cloudera_utils import (
     get_all_cloudera_env_vars,
     setup_applications,
     get_cloudera_credentials
