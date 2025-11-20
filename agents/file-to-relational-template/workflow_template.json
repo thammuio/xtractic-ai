@@ -1,24 +1,23 @@
 {
   "template_version": "0.0.1",
   "workflow_template": {
-    "id": "06650111-ad21-439d-ac7c-c60b2a2c0607",
+    "id": "f1016d20-00f6-471f-a466-d1dcbc9b26a1",
     "name": "files-to-relational",
     "description": "",
     "process": "sequential",
     "agent_template_ids": [
-      "27007297-3524-429d-9cbb-334a4b296c9a"
+      "aac03631-8450-48a6-adf1-6bad237d4859"
     ],
     "task_template_ids": [
-      "9d2590fe-e476-4ff8-b069-0832bb6ab05c",
-      "b6951b57-4971-44f6-a307-9c1801d19bf9"
+      "da9d0a50-d612-4e04-9dda-1486e3322777"
     ],
     "is_conversational": false,
     "pre_packaged": false
   },
   "agent_templates": [
     {
-      "id": "27007297-3524-429d-9cbb-334a4b296c9a",
-      "workflow_template_id": "06650111-ad21-439d-ac7c-c60b2a2c0607",
+      "id": "aac03631-8450-48a6-adf1-6bad237d4859",
+      "workflow_template_id": "f1016d20-00f6-471f-a466-d1dcbc9b26a1",
       "name": "Data Integration Specialist",
       "description": "Data Integration Specialist",
       "role": "Data Integration Specialist",
@@ -30,10 +29,10 @@
       "temperature": 0.10000000149011612,
       "max_iter": 0,
       "tool_template_ids": [
-        "ba5b5fc8-f20c-41e6-b6c7-7ec5c16daf4c",
-        "4df8c228-cc2f-4508-8792-723348f232a1",
-        "5c1af87a-b4be-410f-bb96-996641a5bde8",
-        "0b287453-96fc-4943-9c0a-cca1d068235b"
+        "7a3fd5bd-1a9a-46ea-b12f-21b4b3610f40",
+        "fbec093d-33cf-435e-9d14-dcf1f3721595",
+        "313cf632-299d-4d65-a28a-95eeb7debb8f",
+        "1eef8952-a5fe-4c33-9d85-068867ebd7b8"
       ],
       "mcp_template_ids": [],
       "pre_packaged": false,
@@ -42,65 +41,58 @@
   ],
   "tool_templates": [
     {
-      "id": "5c1af87a-b4be-410f-bb96-996641a5bde8",
-      "workflow_template_id": "06650111-ad21-439d-ac7c-c60b2a2c0607",
+      "id": "313cf632-299d-4d65-a28a-95eeb7debb8f",
+      "workflow_template_id": "f1016d20-00f6-471f-a466-d1dcbc9b26a1",
       "name": "csv-data-extractor",
       "python_code_file_name": "tool.py",
       "python_requirements_file_name": "requirements.txt",
-      "source_folder_path": "studio-data/tool_templates/csv_data_extractor_RdGD9UJg",
+      "source_folder_path": "studio-data/tool_templates/csv_data_extractor_DwHqKft",
       "pre_built": false,
-      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/csv_data_extractor_RdGD9UJg_icon.png",
+      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/csv_data_extractor_DwHqKft_icon.png",
       "is_venv_tool": true
     },
     {
-      "id": "ba5b5fc8-f20c-41e6-b6c7-7ec5c16daf4c",
-      "workflow_template_id": "06650111-ad21-439d-ac7c-c60b2a2c0607",
+      "id": "7a3fd5bd-1a9a-46ea-b12f-21b4b3610f40",
+      "workflow_template_id": "f1016d20-00f6-471f-a466-d1dcbc9b26a1",
       "name": "pdf-data-extraction",
       "python_code_file_name": "tool.py",
       "python_requirements_file_name": "requirements.txt",
-      "source_folder_path": "studio-data/tool_templates/pdf_data_extraction_oFus9jaj",
+      "source_folder_path": "studio-data/tool_templates/pdf_data_extraction_QqThXIkk",
       "pre_built": false,
-      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/pdf_data_extraction_oFus9jaj_icon.png",
+      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/pdf_data_extraction_QqThXIkk_icon.png",
       "is_venv_tool": true
     },
     {
-      "id": "4df8c228-cc2f-4508-8792-723348f232a1",
-      "workflow_template_id": "06650111-ad21-439d-ac7c-c60b2a2c0607",
-      "name": "postgres-insert",
-      "python_code_file_name": "tool.py",
-      "python_requirements_file_name": "requirements.txt",
-      "source_folder_path": "studio-data/tool_templates/postgres_insert_gtkTj3Kh",
-      "pre_built": false,
-      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/postgres_insert_gtkTj3Kh_icon.png",
-      "is_venv_tool": true
-    },
-    {
-      "id": "0b287453-96fc-4943-9c0a-cca1d068235b",
-      "workflow_template_id": "06650111-ad21-439d-ac7c-c60b2a2c0607",
+      "id": "1eef8952-a5fe-4c33-9d85-068867ebd7b8",
+      "workflow_template_id": "f1016d20-00f6-471f-a466-d1dcbc9b26a1",
       "name": "update-stats",
       "python_code_file_name": "tool.py",
       "python_requirements_file_name": "requirements.txt",
-      "source_folder_path": "studio-data/tool_templates/update_stats_ETcHricI",
+      "source_folder_path": "studio-data/tool_templates/update_stats_974DXFS4",
       "pre_built": false,
-      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/update_stats_ETcHricI_icon.png",
+      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/update_stats_974DXFS4_icon.png",
+      "is_venv_tool": true
+    },
+    {
+      "id": "fbec093d-33cf-435e-9d14-dcf1f3721595",
+      "workflow_template_id": "f1016d20-00f6-471f-a466-d1dcbc9b26a1",
+      "name": "postgres-insert",
+      "python_code_file_name": "tool.py",
+      "python_requirements_file_name": "requirements.txt",
+      "source_folder_path": "studio-data/tool_templates/postgres_insert_rDKvCF50",
+      "pre_built": false,
+      "tool_image_path": "studio-data/dynamic_assets/tool_template_icons/postgres_insert_rDKvCF50_icon.png",
       "is_venv_tool": true
     }
   ],
   "mcp_templates": [],
   "task_templates": [
     {
-      "id": "b6951b57-4971-44f6-a307-9c1801d19bf9",
-      "workflow_template_id": "06650111-ad21-439d-ac7c-c60b2a2c0607",
-      "description": "\nBased on processed data context stats, \npopulate \"stats\" table with relevant stats (metadata) that are useful in the future to check how much data, files, records we are processing.. ",
-      "expected_output": "All the relavent stats on processed file will be saved in postgres tables..",
-      "assigned_agent_template_id": "27007297-3524-429d-9cbb-334a4b296c9a"
-    },
-    {
-      "id": "9d2590fe-e476-4ff8-b069-0832bb6ab05c",
-      "workflow_template_id": "06650111-ad21-439d-ac7c-c60b2a2c0607",
+      "id": "da9d0a50-d612-4e04-9dda-1486e3322777",
+      "workflow_template_id": "f1016d20-00f6-471f-a466-d1dcbc9b26a1",
       "description": "process the {uploaded_file_url} and provided {query} and extract data accordingly....",
       "expected_output": "once the Data is extracted save it in context and  insert into Supabase - create new tables if needed for each file processed unless specifically mentioned in the query.\n\nif success save the stats in the context  - success, table_name, trace_id and any other details that are helpful for my future use for next tool.",
-      "assigned_agent_template_id": "27007297-3524-429d-9cbb-334a4b296c9a"
+      "assigned_agent_template_id": "aac03631-8450-48a6-adf1-6bad237d4859"
     }
   ]
 }

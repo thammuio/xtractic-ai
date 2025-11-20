@@ -4,6 +4,7 @@ A specialized agent tool for inserting statistics data into XtracticAI stats tab
 
 ## Features
 
+- ✅ **Schema Validation** - Validates columns match the table schema and returns descriptive error messages
 - ✅ **Dynamic Column Selection** - Agent decides which columns to insert based on collected information
 - ✅ **Smart Updates** - Can update existing records instead of creating duplicates
 - ✅ **Auto-generated Fields** - Automatically adds IDs and timestamps when needed
@@ -42,7 +43,8 @@ Track MCP server calls and status.
 ### 3. `file_processing_stats`
 Track file uploads and processing.
 
-**Key Columns:**
+**All Columns:**
+- `id` - Auto-generated UUID
 - `file_name` (required) - Name of the file
 - `file_type` (required) - File type (pdf, csv, json, xml, etc.)
 - `file_size_bytes` - Size in bytes
@@ -52,6 +54,8 @@ Track file uploads and processing.
 - `workflow_name` - Associated workflow name
 - `error_message` - Error details if failed
 - `processing_duration_ms` - Processing time in milliseconds
+- `uploaded_at` - Auto-generated timestamp
+- `completed_at` - Timestamp when processing completed
 
 ### 4. `workflow_execution_stats`
 Track workflow executions and results.
@@ -260,6 +264,20 @@ The tool automatically adds these fields if not provided:
 }
 ```
 
+### Column Validation Error Response
+
+When provided columns don't match the table schema:
+
+```json
+{
+  "success": false,
+  "message": "Column validation failed for table 'file_processing_stats'. The following columns are not valid: extra_field, unknown_column. Expected columns are: id, file_name, file_type, file_size_bytes, processing_status, records_extracted, workflow_id, workflow_name, error_message, processing_duration_ms, uploaded_at, completed_at. Please ensure your data matches the table schema.",
+  "invalid_columns": ["extra_field", "unknown_column"],
+  "expected_columns": ["id", "file_name", "file_type", "file_size_bytes", "processing_status", "records_extracted", "workflow_id", "workflow_name", "error_message", "processing_duration_ms", "uploaded_at", "completed_at"],
+  "provided_columns": ["file_name", "file_type", "extra_field", "unknown_column"]
+}
+```
+
 ### Error Response
 
 ```json
@@ -307,6 +325,15 @@ The tool automatically adds these fields if not provided:
 ## Error Handling
 
 Common errors and solutions:
+
+**Column validation failed:**
+```json
+{
+  "success": false,
+  "message": "Column validation failed for table 'file_processing_stats'. The following columns are not valid: extra_field. Expected columns are: id, file_name, file_type, file_size_bytes, processing_status, records_extracted, workflow_id, workflow_name, error_message, processing_duration_ms, uploaded_at, completed_at. Please ensure your data matches the table schema."
+}
+```
+Solution: Only use columns that are defined in the table schema. Check the expected_columns list in the error response.
 
 **Table doesn't exist:**
 ```json

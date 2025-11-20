@@ -97,6 +97,36 @@ def get_primary_key_column(stats_table: str) -> str:
     return table_keys.get(stats_table, "id")
 
 
+def get_expected_columns(stats_table: str) -> list:
+    """
+    Get the expected columns for each stats table.
+    """
+    table_columns = {
+        "agent_stats": [
+            "id", "agent_name", "agent_type", "status", "deployment_url",
+            "total_executions", "successful_executions", "failed_executions",
+            "last_execution_at", "created_at", "updated_at"
+        ],
+        "mcp_server_stats": [
+            "id", "server_name", "server_type", "status", "endpoint_url",
+            "total_calls", "successful_calls", "failed_calls",
+            "last_call_at", "created_at", "updated_at"
+        ],
+        "file_processing_stats": [
+            "id", "file_name", "file_type", "file_size_bytes", "processing_status",
+            "records_extracted", "workflow_id", "workflow_name", "error_message",
+            "processing_duration_ms", "uploaded_at", "completed_at"
+        ],
+        "workflow_execution_stats": [
+            "id", "workflow_id", "workflow_name", "execution_type", "status",
+            "input_files_count", "output_records_count", "records_processed",
+            "records_failed", "agents_used", "tools_used", "duration_ms",
+            "error_message", "metadata", "started_at", "completed_at"
+        ]
+    }
+    return table_columns.get(stats_table, [])
+
+
 def table_exists(cursor, schema_name: str, table_name: str) -> bool:
     """
     Check if a table exists in the database.
@@ -178,6 +208,26 @@ def run_tool(config: UserParameters, args: ToolParameters) -> Any:
             "success": False,
             "error": "No data provided to insert",
             "rows_inserted": 0
+        }
+    
+    # Validate columns match expected schema
+    expected_columns = get_expected_columns(args.stats_table)
+    provided_columns = set(args.data.keys())
+    
+    # Check for invalid columns (columns not in the schema)
+    invalid_columns = provided_columns - set(expected_columns)
+    
+    if invalid_columns:
+        # Return descriptive text when columns don't match
+        return {
+            "success": False,
+            "message": f"Column validation failed for table '{args.stats_table}'. "
+                      f"The following columns are not valid: {', '.join(sorted(invalid_columns))}. "
+                      f"Expected columns are: {', '.join(expected_columns)}. "
+                      f"Please ensure your data matches the table schema.",
+            "invalid_columns": sorted(list(invalid_columns)),
+            "expected_columns": expected_columns,
+            "provided_columns": sorted(list(provided_columns))
         }
     
     try:
