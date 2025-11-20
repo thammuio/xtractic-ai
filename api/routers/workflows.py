@@ -79,7 +79,10 @@ async def get_workflow_stats(
     limit: int = 50,
     status: Optional[str] = None
 ):
-    """Get workflow submission statistics with file processing details
+    """Get unique workflow submissions with file processing details
+    
+    Returns unique rows based on filename extracted from uploaded_file_url.
+    If multiple submissions exist for the same file, only the most recent one is returned.
     
     Correlates workflow_submissions with file_processing_stats by matching:
     - file_name from file_processing_stats

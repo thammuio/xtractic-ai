@@ -462,17 +462,17 @@ class StatsService:
         limit: int = 50,
         status: str = None
     ) -> Dict[str, Any]:
-        """Get workflow submission statistics correlated with file processing stats
+        """Get unique workflow submissions correlated with file processing stats
         
-        Matches workflow_submissions with file_processing_stats by extracting filename
-        from uploaded_file_url and matching with file_name.
+        Returns unique rows based on filename (extracted from uploaded_file_url).
+        If multiple submissions exist for the same file, only the most recent one is returned.
         
         Args:
-            limit: Maximum number of submissions to return
+            limit: Maximum number of unique submissions to return
             status: Optional status filter (submitted, in-progress, completed, failed)
             
         Returns:
-            Dictionary containing submissions list, count, and summary statistics
+            Dictionary containing unique submissions list, count, and summary statistics
         """
         pool = await self._get_pool()
         async with pool.acquire() as conn:
@@ -481,7 +481,7 @@ class StatsService:
             status_params = [limit, status] if status else [limit]
             
             # Query that joins workflow_submissions with file_processing_stats
-            # by extracting filename from uploaded_file_url
+            # Uses DISTINCT ON to get unique rows per filename
             query = f"""
                 WITH extracted_filenames AS (
                     SELECT 
@@ -491,7 +491,7 @@ class StatsService:
                     FROM xtracticai.workflow_submissions ws
                     {status_filter}
                 )
-                SELECT 
+                SELECT DISTINCT ON (ef.extracted_filename)
                     ef.id,
                     ef.trace_id,
                     ef.workflow_url,
@@ -522,7 +522,7 @@ class StatsService:
                 FROM extracted_filenames ef
                 LEFT JOIN xtracticai.file_processing_stats fps 
                     ON fps.file_name = ef.extracted_filename
-                ORDER BY ef.submitted_at DESC
+                ORDER BY ef.extracted_filename, ef.submitted_at DESC
                 LIMIT $1
             """
             
