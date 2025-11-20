@@ -15,10 +15,11 @@ class Settings(BaseSettings):
     PORT: int = 8000
     DEBUG: bool = True
     
-    # Supabase Settings
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
-    SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
+    # Backend Database Settings
+    BACKEND_DATABASE_URL: str = os.getenv(
+        "BACKEND_DATABASE_URL",
+        ""
+    )
     
     # Cloudera AI Agent Studio Settings
     CLOUDERA_API_URL: str = os.getenv("CLOUDERA_API_URL", "")
@@ -28,7 +29,7 @@ class Settings(BaseSettings):
     # Deployed Workflow Settings
     DEPLOYED_WORKFLOW_URL: str = os.getenv(
         "DEPLOYED_WORKFLOW_URL",
-        "https://workflow-0421b0de-eec0-4dab-9a72-00e31453cf14.ml-d248e68a-04a.se-sandb.a465-9q4k.cloudera.site"
+        ""
     )
     CDSW_APIV2_KEY: str = os.getenv("CDSW_APIV2_KEY", "")
     CDSW_PROJECT_ID: str = os.getenv("CDSW_PROJECT_ID", "")

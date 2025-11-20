@@ -9,7 +9,7 @@ import threading
 import uvicorn
 import os
 
-from api.routers import workflows, datasets, ai, etl, mcp, rag
+from api.routers import workflows, datasets, ai, etl, mcp, rag, stats
 from api.core.config import settings
 
 
@@ -43,6 +43,7 @@ def create_app():
     app.include_router(etl.router, prefix="/api/etl", tags=["ETL"])
     app.include_router(mcp.router, prefix="/api/mcp", tags=["MCP"])
     app.include_router(rag.router, prefix="/api/rag", tags=["RAG"])
+    app.include_router(stats.router, prefix="/api/stats", tags=["Statistics"])
 
     @app.get("/")
     async def root():

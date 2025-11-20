@@ -6,13 +6,18 @@ import aiohttp
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
+import time
 
 from api.core.config import settings
 from api.utils.cloudera_utils import (
     get_cloudera_credentials,
     get_workflow_endpoint,
-    get_cloudera_headers
+    get_cloudera_headers,
+    get_workflow_application_url,
+    get_pdf_to_relational_workflow_url,
+    get_env_var
 )
+from api.services.stats_service import StatsService
 
 
 class ClouderaService:
@@ -178,12 +183,12 @@ class ClouderaService:
         response = await self._make_request("GET", endpoint)
         return response.get("logs", [])
     
-    async def kickoff_deployed_workflow(self, pdf_url: str) -> Dict:
+    async def kickoff_deployed_workflow(self, uploaded_file_url: str) -> Dict:
         """Start deployed workflow with PDF URL"""
         url = f"{self.deployed_workflow_url}/api/workflow/kickoff"
         data = {
             "inputs": {
-                "pdf_url": pdf_url
+                "uploaded_file_url": uploaded_file_url
             }
         }
         
@@ -215,3 +220,196 @@ class ClouderaService:
                     "trace_id": trace_id,
                     "events": events
                 }
+    
+    async def submit_workflow(self, uploaded_file_url: str, query: str) -> Dict:
+        """Submit workflow to pdf-to-relational Agent Studio application"""
+        stats_service = StatsService()
+        start_time = time.time()
+        execution_id = None
+        file_id = None
+        
+        try:
+            await stats_service.init_schema()
+            
+            # Track agent
+            await stats_service.track_agent(
+                agent_name="pdf-to-relational",
+                agent_type="workflow",
+                status="running"
+            )
+            
+            # Track file upload
+            file_name = uploaded_file_url.split('/')[-1] if '/' in uploaded_file_url else uploaded_file_url
+            file_id = await stats_service.track_file_upload(
+                file_name=file_name,
+                file_type="pdf",
+                file_size_bytes=0,
+                workflow_id="pdf-to-relational",
+                workflow_name="PDF to Relational"
+            )
+            
+            # Track workflow execution
+            execution_id = await stats_service.track_workflow_execution(
+                workflow_id="pdf-to-relational",
+                workflow_name="PDF to Relational",
+                execution_type="manual",
+                agents_used=["pdf-to-relational"],
+                tools_used=["pdf_processor"]
+            )
+            
+            # Get the pdf-to-relational workflow URL
+            workflow_url = get_pdf_to_relational_workflow_url()
+            if not workflow_url:
+                raise Exception("pdf-to-relational workflow application not found in Agent Studio")
+            
+            api_key = get_env_var("CDSW_APIV2_KEY")
+            
+            url = f"{workflow_url}/api/workflow/kickoff"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
+            data = {
+                "inputs": {
+                    "uploaded_file_url": uploaded_file_url,
+                    "query": query
+                }
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=headers, json=data) as response:
+                    if response.status >= 400:
+                        error_text = await response.text()
+                        duration_ms = (time.time() - start_time) * 1000
+                        
+                        # Update stats for failure
+                        await stats_service.update_agent_execution("pdf-to-relational", False)
+                        if file_id:
+                            await stats_service.update_file_processing(
+                                file_id, "failed", error_message=error_text, duration_ms=duration_ms
+                            )
+                        if execution_id:
+                            await stats_service.update_workflow_execution(
+                                execution_id, "failed", error_message=error_text, duration_ms=duration_ms
+                            )
+                        
+                        raise Exception(f"Workflow submission failed: {error_text}")
+                    
+                    result = await response.json()
+                    duration_ms = (time.time() - start_time) * 1000
+                    
+                    # Update stats for success
+                    await stats_service.update_agent_execution("pdf-to-relational", True)
+                    if file_id:
+                        await stats_service.update_file_processing(
+                            file_id, "completed", duration_ms=duration_ms
+                        )
+                    if execution_id:
+                        await stats_service.update_workflow_execution(
+                            execution_id,
+                            "success",
+                            input_files_count=1,
+                            duration_ms=duration_ms,
+                            metadata={"workflow_url": workflow_url}
+                        )
+                    
+                    return {
+                        "success": True,
+                        "data": result,
+                        "workflow_url": workflow_url,
+                        "execution_id": execution_id,
+                        "file_id": file_id,
+                        "message": "Workflow submitted successfully to pdf-to-relational"
+                    }
+        except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            
+            # Update stats for error
+            if execution_id:
+                await stats_service.update_workflow_execution(
+                    execution_id, "failed", error_message=str(e), duration_ms=duration_ms
+                )
+            
+            raise Exception(f"Error submitting workflow: {str(e)}")
+        finally:
+            await stats_service.close()
+            
+            # Get the pdf-to-relational workflow URL
+            workflow_url = get_pdf_to_relational_workflow_url()
+            if not workflow_url:
+                raise Exception("pdf-to-relational workflow application not found in Agent Studio")
+            
+            # Get API key
+            api_key = get_env_var("CDSW_APIV2_KEY")
+            
+            # Make request to workflow
+            url = f"{workflow_url}/api/workflow/kickoff"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
+            data = {
+                "inputs": {
+                    "uploaded_file_url": uploaded_file_url,
+                    "query": query
+                }
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=headers, json=data) as response:
+                    if response.status >= 400:
+                        error_text = await response.text()
+                        duration_ms = (time.time() - start_time) * 1000
+                        
+                        # Track failure
+                        await stats_service.track_activity(
+                            activity_type="workflow_submit",
+                            activity_name="pdf-to-relational",
+                            status="failure",
+                            error_message=f"Workflow submission failed: {error_text}",
+                            duration_ms=duration_ms,
+                            activity_id=activity_id
+                        )
+                        
+                        raise Exception(f"Workflow submission failed: {error_text}")
+                    
+                    result = await response.json()
+                    duration_ms = (time.time() - start_time) * 1000
+                    
+                    # Track success
+                    await stats_service.track_activity(
+                        activity_type="workflow_submit",
+                        activity_name="pdf-to-relational",
+                        status="success",
+                        output_data=result,
+                        duration_ms=duration_ms,
+                        metadata={
+                            "workflow_url": workflow_url
+                        },
+                        activity_id=activity_id
+                    )
+                    
+                    return {
+                        "success": True,
+                        "data": result,
+                        "workflow_url": workflow_url,
+                        "activity_id": activity_id,
+                        "message": "Workflow submitted successfully to pdf-to-relational"
+                    }
+        except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            
+            # Track error
+            if activity_id:
+                await stats_service.track_activity(
+                    activity_type="workflow_submit",
+                    activity_name="pdf-to-relational",
+                    status="failure",
+                    error_message=str(e),
+                    duration_ms=duration_ms,
+                    activity_id=activity_id
+                )
+            
+            raise Exception(f"Error submitting workflow: {str(e)}")
+        finally:
+            await stats_service.close()

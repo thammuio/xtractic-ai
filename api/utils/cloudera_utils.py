@@ -346,3 +346,58 @@ def get_agent_studio_applications() -> List[Dict]:
     """
     return get_applications_by_project_name_contains("Agent Studio")
 
+
+def get_workflow_application_url() -> Optional[str]:
+    """
+    Get the URL of the first workflow application from Agent Studio
+    
+    Returns:
+        Full URL to the workflow application (e.g., https://subdomain.domain.com)
+        Returns None if no workflow found
+        
+    Raises:
+        Exception: If API error occurs or credentials are missing
+    """
+    try:
+        applications = get_agent_studio_applications()
+        domain = get_env_var("CDSW_DOMAIN")
+        
+        # Find first application that is a workflow (contains "Workflow:" in name)
+        for app in applications:
+            if "Workflow:" in app.get("name", ""):
+                subdomain = app.get("subdomain")
+                if subdomain and domain:
+                    return f"https://{subdomain}.{domain}"
+        
+        return None
+    except Exception as e:
+        raise Exception(f"Error getting workflow application URL: {str(e)}")
+
+
+def get_pdf_to_relational_workflow_url() -> Optional[str]:
+    """
+    Get the URL of the pdf-to-relational workflow application from Agent Studio
+    
+    Returns:
+        Full URL to the pdf-to-relational workflow (e.g., https://subdomain.domain.com)
+        Returns None if not found
+        
+    Raises:
+        Exception: If API error occurs or credentials are missing
+    """
+    try:
+        applications = get_agent_studio_applications()
+        domain = get_env_var("CDSW_DOMAIN")
+        
+        # Find application with "pdf-to-relational" in the name
+        for app in applications:
+            app_name = app.get("name", "").lower()
+            if "pdf-to-relational" in app_name or "pdf to relational" in app_name:
+                subdomain = app.get("subdomain")
+                if subdomain and domain:
+                    return f"https://{subdomain}.{domain}"
+        
+        return None
+    except Exception as e:
+        raise Exception(f"Error getting pdf-to-relational workflow URL: {str(e)}")
+

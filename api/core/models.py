@@ -1,14 +1,12 @@
 """
 Database models for SQLAlchemy
 """
-from sqlalchemy import Column, String, DateTime, JSON, Text, Integer
+from sqlalchemy import Column, String, DateTime, JSON, Text, Integer, Float
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import uuid
 
 from api.core.database import Base
-
-
 class Workflow(Base):
     __tablename__ = "workflows"
     
@@ -56,3 +54,77 @@ class Document(Base):
     metadata = Column(JSON)
     collection = Column(String, default="default")
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AgentStats(Base):
+    __tablename__ = "agent_stats"
+    __table_args__ = {'schema': 'xtracticai'}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_name = Column(String, nullable=False)
+    agent_type = Column(String)  # workflow, chatbot, etc.
+    status = Column(String)  # deployed, stopped, running
+    deployment_url = Column(String)
+    total_executions = Column(Integer, default=0)
+    successful_executions = Column(Integer, default=0)
+    failed_executions = Column(Integer, default=0)
+    last_execution_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MCPServerStats(Base):
+    __tablename__ = "mcp_server_stats"
+    __table_args__ = {'schema': 'xtracticai'}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    server_name = Column(String, nullable=False)
+    server_type = Column(String)  # acled, fewsnet, nifi, etc.
+    status = Column(String)  # active, inactive
+    endpoint_url = Column(String)
+    total_calls = Column(Integer, default=0)
+    successful_calls = Column(Integer, default=0)
+    failed_calls = Column(Integer, default=0)
+    last_call_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class FileProcessingStats(Base):
+    __tablename__ = "file_processing_stats"
+    __table_args__ = {'schema': 'xtracticai'}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    file_name = Column(String, nullable=False)
+    file_type = Column(String, nullable=False)  # pdf, csv, json, xml, etc.
+    file_size_bytes = Column(Integer)
+    processing_status = Column(String)  # processing, completed, failed
+    records_extracted = Column(Integer, default=0)
+    workflow_id = Column(String)
+    workflow_name = Column(String)
+    error_message = Column(Text)
+    processing_duration_ms = Column(Float)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime)
+
+
+class WorkflowExecutionStats(Base):
+    __tablename__ = "workflow_execution_stats"
+    __table_args__ = {'schema': 'xtracticai'}
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workflow_id = Column(String, nullable=False)
+    workflow_name = Column(String, nullable=False)
+    execution_type = Column(String)  # manual, scheduled, triggered
+    status = Column(String)  # running, success, failed
+    input_files_count = Column(Integer, default=0)
+    output_records_count = Column(Integer, default=0)
+    records_processed = Column(Integer, default=0)
+    records_failed = Column(Integer, default=0)
+    agents_used = Column(JSON)  # List of agents involved
+    tools_used = Column(JSON)  # List of tools/MCPs used
+    duration_ms = Column(Float)
+    error_message = Column(Text)
+    metadata = Column(JSON)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime)

@@ -20,7 +20,12 @@ router = APIRouter()
 
 
 class WorkflowKickoffRequest(BaseModel):
-    pdf_url: str
+    uploaded_file_url: str
+
+
+class WorkflowSubmitRequest(BaseModel):
+    uploaded_file_url: str
+    query: str
     
 
 class WorkflowEventsRequest(BaseModel):
@@ -338,13 +343,27 @@ async def get_execution_logs(workflow_id: str, execution_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/submit")
+async def submit_workflow(request: WorkflowSubmitRequest):
+    """Submit workflow with PDF URL and query to Agent Studio"""
+    try:
+        cloudera_service = ClouderaService()
+        result = await cloudera_service.submit_workflow(
+            uploaded_file_url=request.uploaded_file_url,
+            query=request.query
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/deployed/kickoff")
 async def kickoff_deployed_workflow(request: WorkflowKickoffRequest):
     """Start a deployed workflow execution with PDF URL"""
     try:
         cloudera_service = ClouderaService()
         result = await cloudera_service.kickoff_deployed_workflow(
-            pdf_url=request.pdf_url
+            uploaded_file_url=request.uploaded_file_url
         )
         return result
     except Exception as e:
