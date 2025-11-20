@@ -8,8 +8,8 @@ import uuid
 import PyPDF2
 import io
 
-from core.config import settings
-from core.database import get_rag_session
+from api.core.config import settings
+from api.core.database import get_rag_session
 
 
 class RAGService:

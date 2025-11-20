@@ -6,8 +6,8 @@ import uuid
 from datetime import datetime
 import asyncio
 
-from core.database import get_supabase
-from core.config import settings
+from api.core.database import get_supabase
+from api.core.config import settings
 
 
 class ETLService:

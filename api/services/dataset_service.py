@@ -4,8 +4,8 @@ Dataset Service for Supabase integration
 from typing import List, Dict, Any, Optional
 import json
 
-from core.database import get_supabase
-from core.config import settings
+from api.core.database import get_supabase
+from api.core.config import settings
 
 
 class DatasetService:

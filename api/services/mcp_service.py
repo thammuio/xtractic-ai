@@ -4,7 +4,7 @@ MCP (Model Context Protocol) Service
 import aiohttp
 from typing import Dict, Any, Optional, List
 
-from core.config import settings
+from api.core.config import settings
 
 
 class MCPService:
