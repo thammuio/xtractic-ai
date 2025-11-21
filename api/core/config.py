@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     CLOUDERA_API_KEY: str = os.getenv("CLOUDERA_API_KEY", "")
     CLOUDERA_WORKSPACE_ID: str = os.getenv("CLOUDERA_WORKSPACE_ID", "")
     
+    # OpenAI Settings
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    
     # Deployed Workflow Settings
     DEPLOYED_WORKFLOW_URL: str = os.getenv(
         "DEPLOYED_WORKFLOW_URL",

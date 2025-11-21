@@ -9,7 +9,7 @@ import threading
 import uvicorn
 import os
 
-from api.routers import workflows
+from api.routers import workflows, chat
 from api.core.config import settings
 from api.core.database import db_pool
 
@@ -49,6 +49,7 @@ def create_app():
 
     # Include routers
     app.include_router(workflows.router, prefix="/api/workflows", tags=["Workflows"])
+    app.include_router(chat.router, prefix="/api", tags=["Chat"])
 
     @app.get("/")
     async def root():
