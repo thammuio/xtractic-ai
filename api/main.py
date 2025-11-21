@@ -10,6 +10,7 @@ import os
 
 from api.routers import workflows
 from api.core.config import settings
+from api.core.database import db_pool
 
 
 def create_app():
@@ -37,6 +38,16 @@ def create_app():
 
     # Include routers
     app.include_router(workflows.router, prefix="/api/workflows", tags=["Workflows"])
+
+    @app.on_event("startup")
+    async def startup():
+        """Initialize database pool on startup"""
+        await db_pool.get_pool()
+
+    @app.on_event("shutdown")
+    async def shutdown():
+        """Close database pool on shutdown"""
+        await db_pool.close()
 
     @app.get("/")
     async def root():

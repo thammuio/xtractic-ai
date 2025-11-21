@@ -7,6 +7,7 @@ from datetime import datetime
 import uuid
 
 from api.core.config import settings
+from api.core.database import get_db_pool
 from api.utils.cloudera_utils import (
     get_all_cloudera_env_vars,
     setup_applications,
@@ -19,14 +20,11 @@ class WorkflowService:
     """Service for tracking workflow submissions and file processing statistics"""
     
     def __init__(self):
-        self.db_url = settings.BACKEND_DATABASE_URL
-        self._pool = None
+        pass
     
     async def _get_pool(self):
-        """Get or create connection pool"""
-        if self._pool is None:
-            self._pool = await asyncpg.create_pool(self.db_url)
-        return self._pool
+        """Get shared connection pool"""
+        return await get_db_pool()
     
     async def get_workflow_submission_stats(
         self,
@@ -295,8 +293,3 @@ class WorkflowService:
                 "workflows": workflows,
                 "count": len(workflows)
             }
-    
-    async def close(self):
-        """Close connection pool"""
-        if self._pool:
-            await self._pool.close()

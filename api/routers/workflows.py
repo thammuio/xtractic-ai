@@ -44,8 +44,6 @@ async def get_workflows_stats(
             status=status
         )
         
-        await workflow_service.close()
-        
         return {
             "success": True,
             "data": stats["submissions"],
@@ -72,8 +70,6 @@ async def get_workflow_details():
         workflow_service = WorkflowService()
         
         details = await workflow_service.get_workflow_details_summary()
-        
-        await workflow_service.close()
         
         return {
             "success": True,

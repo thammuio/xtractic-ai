@@ -8,20 +8,18 @@ import uuid
 import json
 
 from api.core.config import settings
+from api.core.database import get_db_pool
 
 
 class StatsService:
     """Service for tracking file processing and workflow execution statistics"""
     
     def __init__(self):
-        self.db_url = settings.BACKEND_DATABASE_URL
-        self._pool = None
+        pass
     
     async def _get_pool(self):
-        """Get or create connection pool"""
-        if self._pool is None:
-            self._pool = await asyncpg.create_pool(self.db_url)
-        return self._pool
+        """Get shared connection pool"""
+        return await get_db_pool()
     
     async def track_file_upload(
         self,
@@ -192,8 +190,3 @@ class StatsService:
                 LIMIT $1
             """, limit)
             return [dict(row) for row in rows]
-    
-    async def close(self):
-        """Close connection pool"""
-        if self._pool:
-            await self._pool.close()

@@ -10,6 +10,7 @@ import uuid
 import time
 
 from api.core.config import settings
+from api.core.database import get_db_pool
 from api.utils.cloudera_utils import (
     get_cloudera_credentials,
     get_workflow_endpoint,
@@ -26,8 +27,6 @@ class ClouderaService:
         self.api_url = settings.CLOUDERA_API_URL
         self.api_key = settings.CLOUDERA_API_KEY
         self.workspace_id = settings.CLOUDERA_WORKSPACE_ID
-        self.db_url = settings.BACKEND_DATABASE_URL
-        self._pool = None
         
         # Use utility functions for deployed workflow configuration
         try:
@@ -49,10 +48,8 @@ class ClouderaService:
         }
     
     async def _get_pool(self):
-        """Get or create connection pool"""
-        if self._pool is None:
-            self._pool = await asyncpg.create_pool(self.db_url)
-        return self._pool
+        """Get shared connection pool"""
+        return await get_db_pool()
     
     async def submit_workflow(self, uploaded_file_url: str, query: str) -> Dict:
         """Submit workflow to files-to-relational Agent Studio application"""
