@@ -4,6 +4,7 @@ Integrates with Cloudera AI Agent Studio, MCP Servers, RAG, and Supabase
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import threading
 import uvicorn
 import os
@@ -13,9 +14,19 @@ from api.core.config import settings
 from api.core.database import db_pool
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager for startup and shutdown events"""
+    # Startup: Initialize database pool
+    await db_pool.get_pool()
+    yield
+    # Shutdown: Close database pool
+    await db_pool.close()
+
+
 def create_app():
     CDSW_DOMAIN = os.getenv('CDSW_DOMAIN')
-    app = FastAPI()
+    app = FastAPI(lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -38,16 +49,6 @@ def create_app():
 
     # Include routers
     app.include_router(workflows.router, prefix="/api/workflows", tags=["Workflows"])
-
-    @app.on_event("startup")
-    async def startup():
-        """Initialize database pool on startup"""
-        await db_pool.get_pool()
-
-    @app.on_event("shutdown")
-    async def shutdown():
-        """Close database pool on shutdown"""
-        await db_pool.close()
 
     @app.get("/")
     async def root():
