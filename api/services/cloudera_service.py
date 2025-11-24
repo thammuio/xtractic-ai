@@ -53,7 +53,7 @@ class ClouderaService:
         return await get_db_pool()
     
     async def submit_workflow(self, uploaded_file_url: str, query: str) -> Dict:
-        """Submit workflow to files-to-relational Agent Studio application"""
+        """Submit workflow to file-to-relational Agent Studio application"""
         start_time = time.time()
         trace_id = None
         workflow_url = None
@@ -65,10 +65,10 @@ class ClouderaService:
         
         async with pool.acquire() as conn:
             try:
-                # Get the files-to-relational workflow URL
+                # Get the file-to-relational workflow URL
                 workflow_url = get_pdf_to_relational_workflow_url()
                 if not workflow_url:
-                    raise Exception("files-to-relational workflow application not found in Agent Studio")
+                    raise Exception("file-to-relational workflow application not found in Agent Studio")
                 
                 api_key = get_env_var("CDSW_APIV2_KEY")
                 
@@ -97,7 +97,7 @@ class ClouderaService:
                                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                                 RETURNING id
                             """, str(uuid.uuid4()), workflow_url, uploaded_file_url, file_name, query, 
-                                "failed", "files-to-relational", "PDF to Relational", 
+                                "failed", "file-to-relational", "PDF to Relational", 
                                 error_text, datetime.utcnow())
                             
                             raise Exception(f"Workflow submission failed: {error_text}")
@@ -117,7 +117,7 @@ class ClouderaService:
                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                             RETURNING id
                         """, trace_id, workflow_url, uploaded_file_url, file_name, query, 
-                            "submitted", "files-to-relational", "PDF to Relational", 
+                            "submitted", "file-to-relational", "PDF to Relational", 
                             json.dumps({"response": result}), datetime.utcnow())
                         
                         submission = await conn.fetchrow("""
@@ -134,7 +134,7 @@ class ClouderaService:
                             "workflow_url": workflow_url,
                             "status": "submitted",
                             "submitted_at": submission['submitted_at'].isoformat(),
-                            "message": "Workflow submitted successfully to files-to-relational. Event listener started."
+                            "message": "Workflow submitted successfully to file-to-relational. Event listener started."
                         }
             except Exception as e:
                 # Attempt to save error to database
@@ -146,7 +146,7 @@ class ClouderaService:
                              workflow_id, workflow_name, error_message, submitted_at)
                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                         """, trace_id, workflow_url or "unknown", uploaded_file_url, file_name, query, 
-                            "failed", "files-to-relational", "PDF to Relational", 
+                            "failed", "file-to-relational", "PDF to Relational", 
                             str(e), datetime.utcnow())
                 except:
                     pass  # If database save fails, just raise the original error

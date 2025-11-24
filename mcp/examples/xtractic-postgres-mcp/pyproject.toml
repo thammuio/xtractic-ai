@@ -1,0 +1,13 @@
+[project]
+name = "xtractic-postgres-mcp"
+version = "0.1.0"
+description = "MCP server for Xtractic AI PostgreSQL database"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "asyncpg>=0.29.0",
+    "mcp[cli]>=1.21.0",
+]
+
+[project.scripts]
+run-server = "server:main"
