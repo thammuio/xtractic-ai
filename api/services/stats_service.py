@@ -135,7 +135,7 @@ class StatsService:
                     COALESCE(SUM(file_size_bytes), 0) as total_size
                 FROM xtracticai.file_processing_stats
                 GROUP BY file_type
-                ORDER BY count DESC
+                ORDER BY count ASC
             """)
             
             # Workflow stats
@@ -175,7 +175,7 @@ class StatsService:
         async with pool.acquire() as conn:
             rows = await conn.fetch("""
                 SELECT * FROM xtracticai.file_processing_stats
-                ORDER BY uploaded_at DESC
+                ORDER BY uploaded_at ASC
                 LIMIT $1
             """, limit)
             return [dict(row) for row in rows]
@@ -186,7 +186,7 @@ class StatsService:
         async with pool.acquire() as conn:
             rows = await conn.fetch("""
                 SELECT * FROM xtracticai.workflow_execution_stats
-                ORDER BY started_at DESC
+                ORDER BY started_at ASC
                 LIMIT $1
             """, limit)
             return [dict(row) for row in rows]

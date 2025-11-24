@@ -115,7 +115,7 @@ class WorkflowService:
                         ON fps.file_name = ef.extracted_filename
                 )
                 SELECT * FROM combined_data
-                ORDER BY sort_date DESC NULLS LAST
+                ORDER BY sort_date ASC NULLS LAST
                 LIMIT $1
             """
             
@@ -273,7 +273,7 @@ class WorkflowService:
                 LEFT JOIN xtracticai.file_processing_stats fps 
                     ON fps.file_name = COALESCE(ws.file_name, REGEXP_REPLACE(ws.uploaded_file_url, '.*/', ''))
                 WHERE ws.workflow_id IS NOT NULL
-                ORDER BY last_activity DESC NULLS LAST
+                ORDER BY last_activity ASC NULLS LAST
             """
             
             rows = await conn.fetch(query)
