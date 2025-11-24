@@ -176,10 +176,10 @@ class EventListenerService:
                     wf_output = $3,
                     crew_kickoff_completed = TRUE,
                     last_polled_at = $2
-                WHERE trace_id = $4
+                WHERE trace_id = $4 AND status NOT IN ('completed', 'failed')
             """, "completed", datetime.utcnow(), output, trace_id)
             
-            logger.info(f"Marked workflow {trace_id} as completed")
+            logger.info(f"Marked workflow {trace_id} as completed with final output")
         except Exception as e:
             logger.error(f"Error marking workflow as completed: {str(e)}")
     

@@ -53,7 +53,12 @@ class ClouderaService:
         return await get_db_pool()
     
     async def submit_workflow(self, uploaded_file_url: str, query: str) -> Dict:
-        """Submit workflow to file-to-relational Agent Studio application"""
+        """Submit workflow to file-to-relational Agent Studio application
+        
+        Two-phase update process:
+        1. Immediately update workflow_submissions with initial response (trace_id, execution_id, file_id, etc.)
+        2. Start event listener to wait for completion and update final state (wf_output, crew_kickoff_completed)
+        """
         start_time = time.time()
         trace_id = None
         workflow_url = None
@@ -108,17 +113,28 @@ class ClouderaService:
                         if not trace_id:
                             raise Exception("No trace_id returned from workflow submission")
                         
-                        # Save successful submission to database
+                        # Extract all available fields from submission response
+                        execution_id = result.get("execution_id")
+                        file_id = result.get("file_id")
+                        workflow_id_from_response = result.get("workflow_id")
+                        workflow_name_from_response = result.get("workflow_name")
+                        
+                        # Save successful submission to database with ALL response fields
                         import json
                         submission_id = await conn.fetchval("""
                             INSERT INTO xtracticai.workflow_submissions 
                             (trace_id, workflow_url, uploaded_file_url, file_name, query, status, 
-                             workflow_id, workflow_name, metadata, submitted_at)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                             workflow_id, workflow_name, execution_id, file_id, metadata, submitted_at)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                             RETURNING id
                         """, trace_id, workflow_url, uploaded_file_url, file_name, query, 
-                            "submitted", "file-to-relational", "PDF to Relational", 
-                            json.dumps({"response": result}), datetime.utcnow())
+                            "submitted", 
+                            workflow_id_from_response or "file-to-relational", 
+                            workflow_name_from_response or "PDF to Relational",
+                            uuid.UUID(execution_id) if execution_id else None,
+                            uuid.UUID(file_id) if file_id else None,
+                            json.dumps({"response": result}), 
+                            datetime.utcnow())
                         
                         submission = await conn.fetchrow("""
                             SELECT * FROM xtracticai.workflow_submissions WHERE id = $1
@@ -132,9 +148,13 @@ class ClouderaService:
                             "trace_id": trace_id,
                             "submission_id": str(submission['id']),
                             "workflow_url": workflow_url,
+                            "workflow_id": submission['workflow_id'],
+                            "workflow_name": submission['workflow_name'],
+                            "execution_id": str(submission['execution_id']) if submission['execution_id'] else None,
+                            "file_id": str(submission['file_id']) if submission['file_id'] else None,
                             "status": "submitted",
                             "submitted_at": submission['submitted_at'].isoformat(),
-                            "message": "Workflow submitted successfully to file-to-relational. Event listener started."
+                            "message": "Workflow submitted successfully. Initial response captured. Event listener started to wait for completion."
                         }
             except Exception as e:
                 # Attempt to save error to database
