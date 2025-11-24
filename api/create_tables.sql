@@ -38,5 +38,7 @@ CREATE TABLE IF NOT EXISTS xtracticai.workflow_submissions (
     metadata JSONB,
     submitted_at TIMESTAMP DEFAULT NOW(),
     last_polled_at TIMESTAMP,
-    completed_at TIMESTAMP
+    completed_at TIMESTAMP,
+    wf_output TEXT,
+    crew_kickoff_completed BOOLEAN DEFAULT FALSE
 );

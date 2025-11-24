@@ -12,6 +12,7 @@ import os
 from api.routers import workflows, chat
 from api.core.config import settings
 from api.core.database import db_pool
+from api.services.event_listener_service import event_listener_service
 
 
 @asynccontextmanager
@@ -20,7 +21,8 @@ async def lifespan(app: FastAPI):
     # Startup: Initialize database pool
     await db_pool.get_pool()
     yield
-    # Shutdown: Close database pool
+    # Shutdown: Stop all event listeners and close database pool
+    await event_listener_service.stop_all_listeners()
     await db_pool.close()
 
 

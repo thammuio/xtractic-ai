@@ -70,6 +70,8 @@ class WorkflowService:
                         ws.submitted_at,
                         ws.last_polled_at,
                         ws.completed_at as ws_completed_at,
+                        ws.wf_output,
+                        ws.crew_kickoff_completed,
                         -- Extract filename from URL (after last /) if file_name is null
                         COALESCE(ws.file_name, REGEXP_REPLACE(ws.uploaded_file_url, '.*/', '')) as extracted_filename
                     FROM xtracticai.workflow_submissions ws
@@ -94,6 +96,8 @@ class WorkflowService:
                         ef.submitted_at,
                         ef.last_polled_at,
                         ef.ws_completed_at,
+                        ef.wf_output,
+                        ef.crew_kickoff_completed,
                         fps.id as file_processing_id,
                         fps.file_type,
                         fps.file_size_bytes,
@@ -144,6 +148,8 @@ class WorkflowService:
                         "submitted_at": row["submitted_at"].isoformat() if row["submitted_at"] else None,
                         "last_polled_at": row["last_polled_at"].isoformat() if row["last_polled_at"] else None,
                         "completed_at": row["ws_completed_at"].isoformat() if row["ws_completed_at"] else None,
+                        "wf_output": row.get("wf_output"),
+                        "crew_kickoff_completed": row.get("crew_kickoff_completed", False)
                     }
                 
                 # Add file processing details if present

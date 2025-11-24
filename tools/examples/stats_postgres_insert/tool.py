@@ -5,10 +5,8 @@ This tool allows agents to dynamically insert statistics data into the XtracticA
 The agent can decide which table and columns to use based on the context of collected information.
 
 Supported Stats Tables:
-- agent_stats: Track agent deployments and executions
-- mcp_server_stats: Track MCP server calls and status
 - file_processing_stats: Track file uploads and processing
-- workflow_execution_stats: Track workflow executions and results
+- workflow_submissions: Track workflow submission and polling status
 """
 
 from pydantic import BaseModel, Field
@@ -47,14 +45,14 @@ class ToolParameters(BaseModel):
     The agent can dynamically choose which stats table and what data to insert.
     """
     stats_table: str = Field(
-        description="Stats table to insert into. Options: 'agent_stats', 'mcp_server_stats', 'file_processing_stats', 'workflow_execution_stats'"
+        description="Stats table to insert into. Options: 'file_processing_stats', 'workflow_submissions'"
     )
     data: Dict[str, Any] = Field(
         description="Dictionary with column names as keys and values to insert. Agent can include any relevant columns based on collected information."
     )
     update_if_exists: bool = Field(
         default=False,
-        description="If True, updates existing record if it exists (based on name field). If False, always inserts new record."
+        description="If True, updates existing record if it exists (based on unique key field). If False, always inserts new record."
     )
 
 
@@ -89,10 +87,8 @@ def get_primary_key_column(stats_table: str) -> str:
     Get the unique identifier column for each stats table for update operations.
     """
     table_keys = {
-        "agent_stats": "agent_name",
-        "mcp_server_stats": "server_name",
         "file_processing_stats": "id",
-        "workflow_execution_stats": "id"
+        "workflow_submissions": "trace_id"
     }
     return table_keys.get(stats_table, "id")
 
@@ -102,26 +98,16 @@ def get_expected_columns(stats_table: str) -> list:
     Get the expected columns for each stats table.
     """
     table_columns = {
-        "agent_stats": [
-            "id", "agent_name", "agent_type", "status", "deployment_url",
-            "total_executions", "successful_executions", "failed_executions",
-            "last_execution_at", "created_at", "updated_at"
-        ],
-        "mcp_server_stats": [
-            "id", "server_name", "server_type", "status", "endpoint_url",
-            "total_calls", "successful_calls", "failed_calls",
-            "last_call_at", "created_at", "updated_at"
-        ],
         "file_processing_stats": [
             "id", "file_name", "file_type", "file_size_bytes", "processing_status",
             "records_extracted", "workflow_id", "workflow_name", "error_message",
             "processing_duration_ms", "uploaded_at", "completed_at"
         ],
-        "workflow_execution_stats": [
-            "id", "workflow_id", "workflow_name", "execution_type", "status",
-            "input_files_count", "output_records_count", "records_processed",
-            "records_failed", "agents_used", "tools_used", "duration_ms",
-            "error_message", "metadata", "started_at", "completed_at"
+        "workflow_submissions": [
+            "id", "trace_id", "workflow_url", "uploaded_file_url", "file_name",
+            "query", "status", "workflow_id", "workflow_name", "execution_id",
+            "file_id", "error_message", "metadata", "submitted_at", "last_polled_at",
+            "completed_at"
         ]
     }
     return table_columns.get(stats_table, [])
@@ -195,7 +181,7 @@ def run_tool(config: UserParameters, args: ToolParameters) -> Any:
     Main tool logic for inserting stats data into PostgreSQL tables.
     """
     # Validate stats table
-    valid_tables = ["agent_stats", "mcp_server_stats", "file_processing_stats", "workflow_execution_stats"]
+    valid_tables = ["file_processing_stats", "workflow_submissions"]
     if args.stats_table not in valid_tables:
         return {
             "success": False,
@@ -257,22 +243,16 @@ def run_tool(config: UserParameters, args: ToolParameters) -> Any:
         # Prepare data - add auto-generated fields if not present
         data = args.data.copy()
         
-        # Add id if not present (for tables that need it)
-        if "id" not in data and args.stats_table in ["file_processing_stats", "workflow_execution_stats"]:
+        # Add id if not present
+        if "id" not in data:
             data["id"] = str(uuid.uuid4())
         
         # Add timestamps if not present
-        if "created_at" not in data and args.stats_table in ["agent_stats", "mcp_server_stats"]:
-            data["created_at"] = datetime.now()
-        
-        if "updated_at" not in data and args.stats_table in ["agent_stats", "mcp_server_stats"]:
-            data["updated_at"] = datetime.now()
-        
         if "uploaded_at" not in data and args.stats_table == "file_processing_stats":
             data["uploaded_at"] = datetime.now()
         
-        if "started_at" not in data and args.stats_table == "workflow_execution_stats":
-            data["started_at"] = datetime.now()
+        if "submitted_at" not in data and args.stats_table == "workflow_submissions":
+            data["submitted_at"] = datetime.now()
         
         # Check if we should update existing record
         operation_performed = "inserted"

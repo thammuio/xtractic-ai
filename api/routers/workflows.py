@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from api.services.cloudera_service import ClouderaService
 from api.services.workflow_service import WorkflowService
+from api.services.event_listener_service import event_listener_service
 from api.utils.cloudera_utils import (
     get_all_cloudera_env_vars,
     setup_applications,
@@ -182,6 +183,8 @@ async def get_workflow_status(trace_id: str):
     Polls the workflow events API every 5 seconds to check status:
     - If events are returned: workflow is in-progress
     - If no response/error: workflow is completed
+    
+    Note: This endpoint also ensures the background event listener is running
     """
     try:
         cloudera_service = ClouderaService()
@@ -189,4 +192,28 @@ async def get_workflow_status(trace_id: str):
         return status
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{trace_id}/listener")
+async def get_listener_status(trace_id: str):
+    """Get status of background event listener for a trace_id"""
+    try:
+        status = event_listener_service.get_listener_status(trace_id)
+        return {
+            "success": True,
+            **status
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{trace_id}/listener/stop")
+async def stop_listener(trace_id: str):
+    """Stop background event listener for a trace_id"""
+    try:
+        result = event_listener_service.stop_listening(trace_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 

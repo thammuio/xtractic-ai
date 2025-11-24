@@ -18,6 +18,7 @@ from api.utils.cloudera_utils import (
     get_pdf_to_relational_workflow_url,
     get_env_var
 )
+from api.services.event_listener_service import event_listener_service
 
 
 class ClouderaService:
@@ -123,6 +124,9 @@ class ClouderaService:
                             SELECT * FROM xtracticai.workflow_submissions WHERE id = $1
                         """, submission_id)
                         
+                        # Start background event listener for this trace_id
+                        await event_listener_service.start_listening(trace_id, workflow_url)
+                        
                         return {
                             "success": True,
                             "trace_id": trace_id,
@@ -130,7 +134,7 @@ class ClouderaService:
                             "workflow_url": workflow_url,
                             "status": "submitted",
                             "submitted_at": submission['submitted_at'].isoformat(),
-                            "message": "Workflow submitted successfully to files-to-relational"
+                            "message": "Workflow submitted successfully to files-to-relational. Event listener started."
                         }
             except Exception as e:
                 # Attempt to save error to database
@@ -173,11 +177,20 @@ class ClouderaService:
                         "submitted_at": submission['submitted_at'].isoformat(),
                         "completed_at": submission['completed_at'].isoformat() if submission['completed_at'] else None,
                         "error_message": submission['error_message'],
+                        "wf_output": submission['wf_output'],
+                        "crew_kickoff_completed": submission['crew_kickoff_completed'],
                         "message": f"Workflow is {submission['status']}"
                     }
                 
                 # Only poll if status is not final
                 workflow_url = submission['workflow_url']
+                
+                # Ensure event listener is running for this trace_id
+                listener_status = event_listener_service.get_listener_status(trace_id)
+                if not listener_status['listening']:
+                    # Start listener if not already running
+                    await event_listener_service.start_listening(trace_id, workflow_url)
+                
                 api_key = get_env_var("CDSW_APIV2_KEY")
                 
                 url = f"{workflow_url}/api/workflow/events"

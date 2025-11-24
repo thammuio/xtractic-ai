@@ -19,6 +19,7 @@ from psycopg2 import sql
 from datetime import datetime, date
 import socket
 from urllib.parse import urlparse, urlunparse
+import time
 
 
 class UserParameters(BaseModel):
@@ -188,6 +189,8 @@ def run_tool(config: UserParameters, args: ToolParameters) -> Any:
         }
     
     schema_name = args.schema_name or config.default_schema
+    original_table_name = args.table_name
+    actual_table_name = args.table_name
     
     try:
         # Get connection string with IPv4 resolution if needed
@@ -205,10 +208,10 @@ def run_tool(config: UserParameters, args: ToolParameters) -> Any:
         cursor = conn.cursor()
         
         # Create table identifier
-        table_identifier = sql.Identifier(schema_name, args.table_name)
+        table_identifier = sql.Identifier(schema_name, actual_table_name)
         
         # Check if table exists
-        exists = table_exists(cursor, schema_name, args.table_name)
+        exists = table_exists(cursor, schema_name, actual_table_name)
         
         if not exists:
             if args.create_if_not_exists:
@@ -220,7 +223,7 @@ def run_tool(config: UserParameters, args: ToolParameters) -> Any:
             else:
                 return {
                     "success": False,
-                    "error": f"Table {schema_name}.{args.table_name} does not exist and create_if_not_exists is False",
+                    "error": f"Table {schema_name}.{actual_table_name} does not exist and create_if_not_exists is False",
                     "rows_inserted": 0
                 }
         else:
@@ -258,34 +261,87 @@ def run_tool(config: UserParameters, args: ToolParameters) -> Any:
                     update_clause
                 )
             
-            # Insert data
+            # Insert data with primary key conflict handling
             rows_inserted = 0
-            for row in args.data:
-                # Convert special types
-                values = []
-                for col in columns:
-                    val = row.get(col)
-                    if isinstance(val, (dict, list)):
-                        values.append(Json(val))
-                    else:
-                        values.append(val)
-                
-                cursor.execute(insert_query, values)
-                rows_inserted += 1
+            pk_conflict_occurred = False
             
-            conn.commit()
+            try:
+                for row in args.data:
+                    # Convert special types
+                    values = []
+                    for col in columns:
+                        val = row.get(col)
+                        if isinstance(val, (dict, list)):
+                            values.append(Json(val))
+                        else:
+                            values.append(val)
+                    
+                    cursor.execute(insert_query, values)
+                    rows_inserted += 1
+                
+                conn.commit()
+                
+            except psycopg2.IntegrityError as e:
+                # Check if it's a primary key violation
+                if "duplicate key value violates unique constraint" in str(e).lower() or "primary key" in str(e).lower():
+                    conn.rollback()
+                    pk_conflict_occurred = True
+                    
+                    # Create new table with timestamp suffix
+                    timestamp = int(time.time())
+                    actual_table_name = f"{original_table_name}_{timestamp}"
+                    table_identifier = sql.Identifier(schema_name, actual_table_name)
+                    
+                    # Create the new table
+                    inferred_schema = infer_table_schema(args.data)
+                    create_table(cursor, table_identifier, inferred_schema, args.primary_key)
+                    conn.commit()
+                    table_created = True
+                    
+                    # Prepare new insert query for the new table
+                    insert_query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+                        table_identifier,
+                        sql.SQL(', ').join(map(sql.Identifier, columns)),
+                        sql.SQL(', ').join(sql.Placeholder() * len(columns))
+                    )
+                    
+                    # Re-insert all data into the new table
+                    rows_inserted = 0
+                    for row in args.data:
+                        values = []
+                        for col in columns:
+                            val = row.get(col)
+                            if isinstance(val, (dict, list)):
+                                values.append(Json(val))
+                            else:
+                                values.append(val)
+                        
+                        cursor.execute(insert_query, values)
+                        rows_inserted += 1
+                    
+                    conn.commit()
+                else:
+                    # Re-raise if it's not a primary key conflict
+                    raise
         
         cursor.close()
         conn.close()
         
-        return {
+        result = {
             "success": True,
             "table_created": table_created,
-            "table_name": f"{schema_name}.{args.table_name}",
+            "table_name": f"{schema_name}.{actual_table_name}",
             "rows_inserted": rows_inserted,
             "columns": list(args.data[0].keys()) if args.data else [],
-            "message": f"Successfully inserted {rows_inserted} row(s) into {schema_name}.{args.table_name}"
+            "message": f"Successfully inserted {rows_inserted} row(s) into {schema_name}.{actual_table_name}"
         }
+        
+        if pk_conflict_occurred:
+            result["primary_key_conflict"] = True
+            result["original_table_name"] = f"{schema_name}.{original_table_name}"
+            result["message"] += f" (created new table due to primary key conflict with {schema_name}.{original_table_name})"
+        
+        return result
         
     except psycopg2.OperationalError as e:
         error_msg = str(e)
